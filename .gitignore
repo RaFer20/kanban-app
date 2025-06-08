@@ -1,0 +1,11 @@
+node_modules
+.env
+__pycache__
+.env.*
+dist
+*.sqlite3
+*.log
+poetry.lock
+*.pyc
+.prisma
+.mypy_cache
