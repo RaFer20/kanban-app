@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Body
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from jose import JWTError, jwt
-from datetime import timedelta
+from datetime import datetime, timezone, timedelta
 from app.schemas.user import UserCreate, UserOut, Token
 from app.services.auth import create_user, get_user_by_email
 from app.db.session import get_db
@@ -37,8 +37,28 @@ async def login_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    access_token = create_access_token(data={"sub": user.email})
-    refresh_token = create_refresh_token(data={"sub": user.email})
+    # Generate iat timestamp
+    iat = datetime.now(timezone.utc)
+
+    # Calculate expirations
+    access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
+    refresh_token_expires = timedelta(minutes=settings.refresh_token_expire_minutes)
+    access_exp = iat + access_token_expires
+    refresh_exp = iat + refresh_token_expires
+
+    # Create tokens with explicit sub and exp
+    access_token = create_access_token(
+        data={"sub": str(user.id), "exp": int(access_exp.timestamp())}
+    )
+    refresh_token = create_refresh_token(
+        data={"sub": str(user.id), "exp": int(refresh_exp.timestamp()), "iat": int(iat.timestamp())}
+    )
+
+    # Save refresh_token_iat to DB
+    user.refresh_token_iat = iat
+    db.add(user)
+    await db.commit()
+
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -60,30 +80,35 @@ async def refresh_access_token(
             settings.secret_key,
             algorithms=[settings.algorithm],
         )
-        email = payload.get("sub")
-        if not isinstance(email, str):
-            raise HTTPException(status_code=401, detail="Invalid token payload")
+        user_id = payload.get("sub")
+        token_iat = payload.get("iat")
 
-        user = await get_user_by_email(db, email)
+        if not isinstance(user_id, str) or not user_id.isdigit():
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+        if not isinstance(token_iat, int):
+            raise HTTPException(status_code=401, detail="Invalid token: missing iat")
+
+        user = await db.get(User, int(user_id))
         if user is None:
             raise HTTPException(status_code=401, detail="User no longer exists")
 
-        access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
-        access_token = create_access_token(
-            data={"sub": email},
-            expires_delta=access_token_expires,
-        )
+        stored_iat = user.refresh_token_iat
+        if stored_iat is None or int(stored_iat.timestamp()) != token_iat:
+            raise HTTPException(status_code=401, detail="Refresh token revoked/reused")
 
-        refresh_token_expires = timedelta(minutes=settings.refresh_token_expire_minutes)
-        new_refresh_token = create_refresh_token(
-            data={"sub": email},
-            expires_delta=refresh_token_expires,
-        )
+        # Generate new iat and tokens
+        new_iat = datetime.now(timezone.utc)
+        user.refresh_token_iat = new_iat
+        db.add(user)
+        await db.commit()
+
+        access_token = create_access_token(data={"sub": user_id})
+        new_refresh_token = create_refresh_token(data={"sub": user_id, "iat": int(new_iat.timestamp())})
 
         return {
             "access_token": access_token,
             "refresh_token": new_refresh_token,
-            "token_type": "bearer",
+            "token_type": "bearer"
         }
 
     except JWTError:
