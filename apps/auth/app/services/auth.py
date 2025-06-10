@@ -18,3 +18,10 @@ async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
     result = await db.execute(select(User).filter(User.email == email))
     return result.scalar_one_or_none()
 
+
+async def revoke_refresh_token(db: AsyncSession, user: User) -> None:
+    user.refresh_token_iat = None
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
