@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Body
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from jose import JWTError, jwt
+from jose.exceptions import ExpiredSignatureError
 from datetime import datetime, timezone, timedelta
 from app.schemas.user import UserCreate, UserOut, Token
 from app.services.auth import create_user, get_user_by_email
@@ -10,6 +11,7 @@ from app.core.security import verify_password, create_access_token, create_refre
 from app.models.user import User
 from app.dependencies.auth import get_current_user
 from app.core.config import get_settings
+from app.services import auth as auth_service
 
 settings = get_settings()
 
@@ -27,7 +29,7 @@ async def register_user(user_create: UserCreate, db: AsyncSession = Depends(get_
 async def login_user(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
-):
+) -> Token:
     user: User | None = await get_user_by_email(db, form_data.username)
 
     if not user or not verify_password(form_data.password, user.hashed_password):
@@ -59,11 +61,11 @@ async def login_user(
     db.add(user)
     await db.commit()
 
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer"
-    }
+    return Token(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer"
+    )
 
 @router.get("/me", response_model=UserOut, tags=["auth"])
 async def read_current_user(current_user: User = Depends(get_current_user)):
@@ -73,7 +75,7 @@ async def read_current_user(current_user: User = Depends(get_current_user)):
 async def refresh_access_token(
     refresh_token: str = Body(..., embed=True),
     db: AsyncSession = Depends(get_db),
-):
+) -> Token:
     try:
         payload = jwt.decode(
             refresh_token,
@@ -92,9 +94,11 @@ async def refresh_access_token(
         if user is None:
             raise HTTPException(status_code=401, detail="User no longer exists")
 
-        stored_iat = user.refresh_token_iat
-        if stored_iat is None or int(stored_iat.timestamp()) != token_iat:
-            raise HTTPException(status_code=401, detail="Refresh token revoked/reused")
+        user_iat = user.refresh_token_iat
+        if not user_iat or abs(token_iat - int(user_iat.timestamp())) > 1:
+            # Token reuse or tampering detected
+            await auth_service.revoke_refresh_token(db, user)
+            raise HTTPException(status_code=401, detail="Invalid or reused refresh token")
 
         # Generate new iat and tokens
         new_iat = datetime.now(timezone.utc)
@@ -102,14 +106,31 @@ async def refresh_access_token(
         db.add(user)
         await db.commit()
 
-        access_token = create_access_token(data={"sub": user_id})
-        new_refresh_token = create_refresh_token(data={"sub": user_id, "iat": int(new_iat.timestamp())})
+        # Calculate new access token expiration
+        access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
+        access_exp = new_iat + access_token_expires
 
-        return {
-            "access_token": access_token,
-            "refresh_token": new_refresh_token,
-            "token_type": "bearer"
-        }
+        access_token = create_access_token(
+            data={"sub": user_id, "exp": int(access_exp.timestamp())}
+        )
+        new_refresh_token = create_refresh_token(
+            data={"sub": user_id, "iat": int(new_iat.timestamp())}
+        )
 
+        return Token(
+            access_token=access_token,
+            refresh_token=new_refresh_token,
+            token_type="bearer"
+        )
+    except ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Refresh token expired")
     except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+@router.post("/logout", status_code=204, tags=["auth"])
+async def logout_user(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await auth_service.revoke_refresh_token(db, current_user)
+    return
