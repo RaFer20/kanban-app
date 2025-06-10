@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from jose import JWTError, jwt
 from jose.exceptions import ExpiredSignatureError
 from datetime import datetime, timezone, timedelta
+
 from app.schemas.user import UserCreate, UserOut, Token
 from app.services.auth import create_user, get_user_by_email
 from app.db.session import get_db
@@ -12,10 +13,16 @@ from app.models.user import User
 from app.dependencies.auth import get_current_user
 from app.core.config import get_settings
 from app.services import auth as auth_service
+from app.services.refresh_tokens import (
+    create_refresh_token as save_refresh_token,
+    deactivate_refresh_token,
+    is_refresh_token_valid,
+)
 
 settings = get_settings()
 
 router = APIRouter()
+
 
 @router.post("/users/", response_model=UserOut, tags=["auth"])
 async def register_user(user_create: UserCreate, db: AsyncSession = Depends(get_db)):
@@ -24,6 +31,7 @@ async def register_user(user_create: UserCreate, db: AsyncSession = Depends(get_
         raise HTTPException(status_code=400, detail="Email already registered")
     user = await create_user(db, user_create)
     return user
+
 
 @router.post("/token", response_model=Token, tags=["auth"])
 async def login_user(
@@ -39,37 +47,40 @@ async def login_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Generate iat timestamp
     iat = datetime.now(timezone.utc)
-
-    # Calculate expirations
     access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
     refresh_token_expires = timedelta(minutes=settings.refresh_token_expire_minutes)
     access_exp = iat + access_token_expires
     refresh_exp = iat + refresh_token_expires
 
-    # Create tokens with explicit sub and exp
     access_token = create_access_token(
         data={"sub": str(user.id), "exp": int(access_exp.timestamp())}
     )
     refresh_token = create_refresh_token(
-        data={"sub": str(user.id), "exp": int(refresh_exp.timestamp()), "iat": int(iat.timestamp())}
+        data={
+            "sub": str(user.id),
+            "exp": int(refresh_exp.timestamp()),
+            "iat": int(iat.timestamp()),
+        }
     )
 
-    # Save refresh_token_iat to DB
     user.refresh_token_iat = iat
     db.add(user)
     await db.commit()
 
+    await save_refresh_token(db, refresh_token, user.id, refresh_exp)
+
     return Token(
         access_token=access_token,
         refresh_token=refresh_token,
-        token_type="bearer"
+        token_type="bearer",
     )
+
 
 @router.get("/me", response_model=UserOut, tags=["auth"])
 async def read_current_user(current_user: User = Depends(get_current_user)):
     return current_user
+
 
 @router.post("/refresh", response_model=Token, tags=["auth"])
 async def refresh_access_token(
@@ -96,36 +107,43 @@ async def refresh_access_token(
 
         user_iat = user.refresh_token_iat
         if not user_iat or abs(token_iat - int(user_iat.timestamp())) > 1:
-            # Token reuse or tampering detected
             await auth_service.revoke_refresh_token(db, user)
             raise HTTPException(status_code=401, detail="Invalid or reused refresh token")
 
-        # Generate new iat and tokens
+        valid_in_db = await is_refresh_token_valid(db, refresh_token)
+        if not valid_in_db:
+            await auth_service.revoke_refresh_token(db, user)
+            raise HTTPException(status_code=401, detail="Refresh token invalid or reused")
+
         new_iat = datetime.now(timezone.utc)
         user.refresh_token_iat = new_iat
         db.add(user)
         await db.commit()
 
-        # Calculate new access token expiration
         access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
         access_exp = new_iat + access_token_expires
+        new_refresh_exp = new_iat + timedelta(minutes=settings.refresh_token_expire_minutes)
 
         access_token = create_access_token(
             data={"sub": user_id, "exp": int(access_exp.timestamp())}
         )
         new_refresh_token = create_refresh_token(
-            data={"sub": user_id, "iat": int(new_iat.timestamp())}
+            data={"sub": user_id, "iat": int(new_iat.timestamp()), "exp": int(new_refresh_exp.timestamp())}
         )
+
+        await deactivate_refresh_token(db, refresh_token)
+        await save_refresh_token(db, new_refresh_token, user.id, new_refresh_exp)
 
         return Token(
             access_token=access_token,
             refresh_token=new_refresh_token,
-            token_type="bearer"
+            token_type="bearer",
         )
     except ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Refresh token expired")
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
+
 
 @router.post("/logout", status_code=204, tags=["auth"])
 async def logout_user(
