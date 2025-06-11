@@ -1,4 +1,3 @@
-version: "3.9"
 
 services:
   auth-db:
@@ -26,9 +25,9 @@ services:
     depends_on:
       - auth-db
     environment:
-      ENV: docker  # tells config.py to load .env.docker
+      ENV: docker  # Your app reads .env.docker when ENV=docker
     env_file:
-      - ./services/auth/.env.docker  # external env vars loaded here
+      - ./services/auth/.env.docker
 
 volumes:
   auth-db-data:
