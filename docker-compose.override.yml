@@ -1,0 +1,10 @@
+
+services:
+  auth:
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./services/auth:/app
+    environment:
+      ENV: docker
+    env_file:
+      - ./services/auth/.env.docker
