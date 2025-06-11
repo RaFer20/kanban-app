@@ -1,0 +1,34 @@
+version: "3.9"
+
+services:
+  auth-db:
+    image: postgres:15
+    container_name: auth-db
+    restart: always
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: kanban_user
+      POSTGRES_PASSWORD: kanban_pass
+      POSTGRES_DB: authdb
+    ports:
+      - "5432:5432"
+
+  auth:
+    build:
+      context: ./services/auth
+    container_name: auth-service
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./services/auth:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - auth-db
+    environment:
+      ENV: docker  # tells config.py to load .env.docker
+    env_file:
+      - ./services/auth/.env.docker  # external env vars loaded here
+
+volumes:
+  auth-db-data:
