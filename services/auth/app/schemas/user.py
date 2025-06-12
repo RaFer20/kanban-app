@@ -1,4 +1,5 @@
 from pydantic import BaseModel, EmailStr, ConfigDict
+from typing import Optional, Literal
 
 
 class UserBase(BaseModel):
@@ -7,10 +8,12 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
+    role: Optional[Literal["user", "admin", "guest"]] = "user"
 
 
 class UserOut(UserBase):
     id: int
+    role: str
     model_config = ConfigDict(from_attributes=True)
 
 

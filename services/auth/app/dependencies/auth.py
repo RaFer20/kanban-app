@@ -33,3 +33,16 @@ async def get_current_user(
     if user is None:
         raise credentials_exception
     return user
+
+def require_role(*allowed_roles: str):
+    from typing import Annotated
+    async def role_checker(
+        user: Annotated[User, Depends(get_current_user)]
+    ) -> User:
+        if user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Operation not permitted for role '{user.role}'."
+            )
+        return user
+    return role_checker

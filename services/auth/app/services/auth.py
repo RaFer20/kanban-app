@@ -7,7 +7,11 @@ from app.core.security import get_password_hash
 
 async def create_user(db: AsyncSession, user_create: UserCreate) -> User:
     hashed_password = get_password_hash(user_create.password)
-    db_user = User(email=user_create.email, hashed_password=hashed_password)
+    db_user = User(
+        email=user_create.email,
+        hashed_password=hashed_password,
+        role=user_create.role or "user"  # Fallback if role is None
+    )
     db.add(db_user)
     await db.commit()
     await db.refresh(db_user)
