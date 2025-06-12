@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 import os
+from pydantic import EmailStr 
 
 
 class Settings(BaseSettings):
@@ -18,6 +19,10 @@ class Settings(BaseSettings):
     algorithm: str
     access_token_expire_minutes: int
     refresh_token_expire_minutes: int = 60 * 24 * 7  # Default: 7 days
+
+    # Add guest user config here
+    guest_email: EmailStr = "guest@example.com"
+    guest_password: str = "guest123"
 
     class Config:
         env_file = (
