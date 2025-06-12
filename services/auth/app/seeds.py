@@ -6,14 +6,20 @@ from app.schemas.enums import UserRole
 import os
 
 async def create_guest_user_if_not_exists(db: AsyncSession):
-    guest_email = os.getenv("GUEST_EMAIL", "guest@kanban.local")
+    """
+    Seed a guest/demo user if one doesn't already exist.
+    Uses email and password from environment variables or defaults.
+    """
+    guest_email = os.getenv("GUEST_EMAIL", "guest@example.com")
     guest_password = os.getenv("GUEST_PASSWORD", "guest123")  # Should be in .env
     guest_role = UserRole.guest
 
+    # Check if guest user already exists
     result = await db.execute(select(User).where(User.email == guest_email))
     user = result.scalar_one_or_none()
     
     if not user:
+        # Hash the guest password before storing
         hashed_password = get_password_hash(guest_password)
         new_user = User(
             email=guest_email,
