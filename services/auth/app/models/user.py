@@ -1,8 +1,9 @@
 from datetime import datetime, timezone
-from sqlalchemy import String, Boolean, DateTime
+from sqlalchemy import String, Boolean, DateTime, Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.schemas.enums import UserRole
 
 
 class User(Base):
@@ -38,7 +39,11 @@ class User(Base):
         nullable=False
     )
 
-    role: Mapped[str] = mapped_column(String(50), default="user", nullable=False)
+    role: Mapped[UserRole] = mapped_column(
+        SQLEnum(UserRole, name="userrole"),
+        default=UserRole.user,  # lowercase here
+        nullable=False
+    )
 
     def __repr__(self) -> str:
         return (

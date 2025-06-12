@@ -1,19 +1,25 @@
 from pydantic import BaseModel, EmailStr, ConfigDict
-from typing import Optional, Literal
+from typing import Literal
+from .enums import UserRole
 
 
 class UserBase(BaseModel):
     email: EmailStr
 
 
-class UserCreate(UserBase):
+class UserCreatePublic(UserBase):
     password: str
-    role: Optional[Literal["user", "admin", "guest"]] = "user"
+    # no role field here
+
+
+class UserCreateAdmin(UserBase):
+    password: str
+    role: UserRole
 
 
 class UserOut(UserBase):
     id: int
-    role: str
+    role: UserRole
     model_config = ConfigDict(from_attributes=True)
 
 
