@@ -7,8 +7,6 @@ settings = get_settings()
 
 app = FastAPI(title=settings.project_name)
 
-
-
 # Middleware for CORS
 app.add_middleware(
     CORSMiddleware,

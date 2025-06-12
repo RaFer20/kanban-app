@@ -38,6 +38,8 @@ class User(Base):
         nullable=False
     )
 
+    role: Mapped[str] = mapped_column(String(50), default="user", nullable=False)
+
     def __repr__(self) -> str:
         return (
             f"<User id={self.id} email={self.email} "

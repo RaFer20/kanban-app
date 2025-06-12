@@ -10,7 +10,7 @@ from app.services.auth import create_user, get_user_by_email
 from app.db.session import get_db
 from app.core.security import verify_password, create_access_token, create_refresh_token
 from app.models.user import User
-from app.dependencies.auth import get_current_user
+from app.dependencies.auth import get_current_user, require_role
 from app.core.config import get_settings
 from app.services import auth as auth_service
 from app.services.refresh_tokens import (
@@ -152,3 +152,10 @@ async def logout_user(
 ):
     await auth_service.revoke_refresh_token(db, current_user)
     return
+
+
+@router.get("/admin-only", tags=["admin"])
+async def admin_dashboard(
+    user = Depends(require_role("admin"))
+):
+    return {"message": f"Welcome, admin {user.email}"}
