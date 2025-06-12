@@ -2,15 +2,15 @@ from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models.user import User
-from app.schemas.user import UserCreate
+from app.schemas.user import UserCreatePublic
 from app.core.security import get_password_hash
 
-async def create_user(db: AsyncSession, user_create: UserCreate) -> User:
+async def create_user(db: AsyncSession, user_create: UserCreatePublic) -> User:
     hashed_password = get_password_hash(user_create.password)
     db_user = User(
         email=user_create.email,
         hashed_password=hashed_password,
-        role=user_create.role or "user"  # Fallback if role is None
+        role="user"  # default role for public user creation
     )
     db.add(db_user)
     await db.commit()

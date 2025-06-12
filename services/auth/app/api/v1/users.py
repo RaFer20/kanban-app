@@ -5,7 +5,7 @@ from jose import JWTError, jwt
 from jose.exceptions import ExpiredSignatureError
 from datetime import datetime, timezone, timedelta
 
-from app.schemas.user import UserCreate, UserOut, Token
+from app.schemas.user import UserCreatePublic as UserCreate, UserOut, Token
 from app.services.auth import create_user, get_user_by_email
 from app.db.session import get_db
 from app.core.security import verify_password, create_access_token, create_refresh_token
