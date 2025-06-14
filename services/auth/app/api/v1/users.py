@@ -108,7 +108,7 @@ async def refresh_access_token(
         user_iat = user.refresh_token_iat
         if not user_iat or abs(token_iat - int(user_iat.timestamp())) > 1:
             await auth_service.revoke_refresh_token(db, user)
-            raise HTTPException(status_code=401, detail="Invalid or reused refresh token")
+            raise HTTPException(status_code=401, detail="Refresh token invalid or reused")
 
         valid_in_db = await is_refresh_token_valid(db, refresh_token)
         if not valid_in_db:

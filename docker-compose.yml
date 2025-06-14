@@ -1,4 +1,3 @@
-
 services:
   auth-db:
     image: postgres:15
@@ -6,10 +5,12 @@ services:
     restart: always
     volumes:
       - auth-db-data:/var/lib/postgresql/data
+      - ./docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
     environment:
       POSTGRES_USER: kanban_user
       POSTGRES_PASSWORD: kanban_pass
       POSTGRES_DB: authdb
+      POSTGRES_MULTIPLE_DATABASES: authdb,test_authdb
     ports:
       - "5432:5432"
 
@@ -17,17 +18,20 @@ services:
     build:
       context: ./services/auth
     container_name: auth-service
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      - auth-db
+    environment:
+      ENV: docker
+      POSTGRES_USER: kanban_user
+      POSTGRES_PASSWORD: kanban_pass
+      POSTGRES_DB: authdb
+    env_file:
+      - ./services/auth/.env.docker
     volumes:
       - ./services/auth:/app
     ports:
       - "8000:8000"
-    depends_on:
-      - auth-db
-    environment:
-      ENV: docker  # Your app reads .env.docker when ENV=docker
-    env_file:
-      - ./services/auth/.env.docker
+    command: ["/bin/bash", "/start.sh"]
 
 volumes:
   auth-db-data:
