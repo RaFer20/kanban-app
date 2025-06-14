@@ -18,11 +18,12 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_superuser: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    refresh_token_iat: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
+    last_refresh_jti: Mapped[str | None] = mapped_column(
+        String(64),
         nullable=True,
-        doc="Issued-at time for the latest refresh token"
+        doc="The jti of the latest valid refresh token"
     )
+
 
     refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
 

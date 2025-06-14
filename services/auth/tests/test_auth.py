@@ -1,5 +1,9 @@
-import pytest
 import uuid
+import pytest
+from jose import jwt
+from app.core.config import get_settings
+
+settings = get_settings()
 
 @pytest.mark.asyncio
 async def test_example(client):
@@ -208,3 +212,30 @@ async def test_refresh_token_revoked_after_logout(client):
     refresh_res = await client.post("/api/v1/refresh", json={"refresh_token": refresh_token})
     assert refresh_res.status_code == 401
     assert refresh_res.json().get("detail") == "Refresh token invalid or reused"
+
+
+@pytest.mark.asyncio
+async def test_refresh_token_contains_iat_claim(client):
+    """
+    Verify that the refresh token payload contains the 'iat' claim.
+    """
+    email = f"iatuser_{uuid.uuid4()}@example.com"
+    password = "iatpass"
+
+    # Register user
+    await client.post("/api/v1/users/", json={"email": email, "password": password})
+
+    # Login and get refresh token
+    login_res = await client.post("/api/v1/token", data={"username": email, "password": password})
+    refresh_token = login_res.json()["refresh_token"]
+
+    # Decode refresh token without verifying expiration (ignore exp for test)
+    payload = jwt.decode(
+        refresh_token,
+        settings.secret_key,
+        algorithms=[settings.algorithm],
+        options={"verify_exp": False}
+    )
+
+    assert "iat" in payload
+    assert isinstance(payload["iat"], int)

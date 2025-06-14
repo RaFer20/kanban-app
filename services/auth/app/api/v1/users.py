@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from jose import JWTError, jwt
 from jose.exceptions import ExpiredSignatureError
 from datetime import datetime, timezone, timedelta
+from uuid import uuid4
 
 from app.schemas.user import UserCreatePublic as UserCreate, UserOut, Token
 from app.services.auth import create_user, get_user_by_email
@@ -20,7 +21,6 @@ from app.services.refresh_tokens import (
 )
 
 settings = get_settings()
-
 router = APIRouter()
 
 
@@ -47,11 +47,10 @@ async def login_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    iat = datetime.now(timezone.utc)
-    access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
-    refresh_token_expires = timedelta(minutes=settings.refresh_token_expire_minutes)
-    access_exp = iat + access_token_expires
-    refresh_exp = iat + refresh_token_expires
+    now = datetime.now(timezone.utc)
+    access_exp = now + timedelta(minutes=settings.access_token_expire_minutes)
+    refresh_exp = now + timedelta(minutes=settings.refresh_token_expire_minutes)
+    jti = str(uuid4())
 
     access_token = create_access_token(
         data={"sub": str(user.id), "exp": int(access_exp.timestamp())}
@@ -59,16 +58,17 @@ async def login_user(
     refresh_token = create_refresh_token(
         data={
             "sub": str(user.id),
+            "iat": int(now.timestamp()),
             "exp": int(refresh_exp.timestamp()),
-            "iat": int(iat.timestamp()),
+            "jti": jti,
         }
     )
 
-    user.refresh_token_iat = iat
+    user.last_refresh_jti = jti
     db.add(user)
     await db.commit()
 
-    await save_refresh_token(db, refresh_token, user.id, refresh_exp)
+    await save_refresh_token(db, jti, user.id, refresh_exp)
 
     return Token(
         access_token=access_token,
@@ -94,45 +94,52 @@ async def refresh_access_token(
             algorithms=[settings.algorithm],
         )
         user_id = payload.get("sub")
-        token_iat = payload.get("iat")
+        jti = payload.get("jti")
 
         if not isinstance(user_id, str) or not user_id.isdigit():
             raise HTTPException(status_code=401, detail="Invalid token payload")
-        if not isinstance(token_iat, int):
-            raise HTTPException(status_code=401, detail="Invalid token: missing iat")
+        if not jti:
+            raise HTTPException(status_code=401, detail="Invalid refresh token")
 
         user = await db.get(User, int(user_id))
         if user is None:
             raise HTTPException(status_code=401, detail="User no longer exists")
 
-        user_iat = user.refresh_token_iat
-        if not user_iat or abs(token_iat - int(user_iat.timestamp())) > 1:
+        # Chain reuse protection: Only the last jti should be valid
+        if user.last_refresh_jti != jti:
             await auth_service.revoke_refresh_token(db, user)
             raise HTTPException(status_code=401, detail="Refresh token invalid or reused")
 
-        valid_in_db = await is_refresh_token_valid(db, refresh_token)
+        # Check it's still valid in DB
+        valid_in_db = await is_refresh_token_valid(db, jti)
         if not valid_in_db:
             await auth_service.revoke_refresh_token(db, user)
             raise HTTPException(status_code=401, detail="Refresh token invalid or reused")
 
-        new_iat = datetime.now(timezone.utc)
-        user.refresh_token_iat = new_iat
-        db.add(user)
-        await db.commit()
-
-        access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
-        access_exp = new_iat + access_token_expires
-        new_refresh_exp = new_iat + timedelta(minutes=settings.refresh_token_expire_minutes)
+        # Issue new tokens
+        now = datetime.now(timezone.utc)
+        access_exp = now + timedelta(minutes=settings.access_token_expire_minutes)
+        new_refresh_exp = now + timedelta(minutes=settings.refresh_token_expire_minutes)
+        new_jti = str(uuid4())
 
         access_token = create_access_token(
             data={"sub": user_id, "exp": int(access_exp.timestamp())}
         )
         new_refresh_token = create_refresh_token(
-            data={"sub": user_id, "iat": int(new_iat.timestamp()), "exp": int(new_refresh_exp.timestamp())}
+            data={
+                "sub": user_id,
+                "iat": int(now.timestamp()),
+                "exp": int(new_refresh_exp.timestamp()),
+                "jti": new_jti,
+            }
         )
 
-        await deactivate_refresh_token(db, refresh_token)
-        await save_refresh_token(db, new_refresh_token, user.id, new_refresh_exp)
+        await deactivate_refresh_token(db, jti)
+        await save_refresh_token(db, new_jti, user.id, new_refresh_exp)
+
+        user.last_refresh_jti = new_jti
+        db.add(user)
+        await db.commit()
 
         return Token(
             access_token=access_token,
