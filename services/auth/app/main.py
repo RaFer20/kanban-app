@@ -6,6 +6,7 @@ from app.core.config import get_settings
 from app.db.session import AsyncSessionLocal
 from app.seeds import create_guest_user_if_not_exists
 import time
+import logging
 
 settings = get_settings()
 
@@ -18,6 +19,13 @@ async def lifespan(app: FastAPI):
     print(f"[{time.strftime('%X')}] Shutting down the app...")
 
 app = FastAPI(title=settings.project_name, lifespan=lifespan)
+
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s %(levelname)s %(name)s %(message)s',
+)
+
 
 # Middleware for CORS
 app.add_middleware(

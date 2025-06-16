@@ -25,17 +25,29 @@ async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
     return result.scalar_one_or_none()
 
 
-async def revoke_refresh_token(db: AsyncSession, user: User) -> None:
-    # Deactivate all active refresh tokens for the user
-    await db.execute(
-        update(RefreshToken)
-        .where(RefreshToken.user_id == user.id, RefreshToken.is_active == True)
-        .values(is_active=False)
-    )
-
-    # Clear last valid refresh token ID
-    user.last_refresh_jti = None
-    db.add(user)
-
+async def revoke_refresh_token(
+    db: AsyncSession,
+    user: User,
+    jti: str | None = None,
+    clear_jti: bool = True
+) -> None:
+    from app.models.refresh_token import RefreshToken
+    if jti:
+        # Only deactivate the offending token
+        await db.execute(
+            update(RefreshToken)
+            .where(RefreshToken.user_id == user.id, RefreshToken.jti == jti)
+            .values(is_active=False)
+        )
+    else:
+        # Deactivate all tokens (e.g., on logout)
+        await db.execute(
+            update(RefreshToken)
+            .where(RefreshToken.user_id == user.id, RefreshToken.is_active == True)
+            .values(is_active=False)
+        )
+    if clear_jti:
+        user.last_refresh_jti = None
+        db.add(user)
     await db.commit()
     await db.refresh(user)
