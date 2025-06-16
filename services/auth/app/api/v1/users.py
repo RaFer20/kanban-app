@@ -1,24 +1,29 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+# Standard lib
+from datetime import datetime, timezone, timedelta
+from uuid import uuid4
+
+# Third-party
+from fastapi import APIRouter, Depends, HTTPException, status, Body, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from jose import JWTError, jwt
 from jose.exceptions import ExpiredSignatureError
-from datetime import datetime, timezone, timedelta
-from uuid import uuid4
 
-from app.schemas.user import UserCreatePublic as UserCreate, UserOut, Token
-from app.services.auth import create_user, get_user_by_email
-from app.db.session import get_db
-from app.core.security import verify_password, create_access_token, create_refresh_token
-from app.models.user import User
-from app.dependencies.auth import get_current_user, require_role
+# Local
 from app.core.config import get_settings
+from app.core.security import verify_password, create_access_token, create_refresh_token
+from app.db.session import get_db
+from app.dependencies.auth import get_current_user, require_role
+from app.models.user import User
+from app.schemas.user import UserCreatePublic as UserCreate, UserOut, Token
 from app.services import auth as auth_service
+from app.services.auth import create_user, get_user_by_email
 from app.services.refresh_tokens import (
     create_refresh_token as save_refresh_token,
     deactivate_refresh_token,
     is_refresh_token_valid,
 )
+
 
 settings = get_settings()
 router = APIRouter()
@@ -26,6 +31,12 @@ router = APIRouter()
 
 @router.post("/users/", response_model=UserOut, tags=["auth"])
 async def register_user(user_create: UserCreate, db: AsyncSession = Depends(get_db)):
+    """
+    Register a new user with an email and password.
+
+    - Returns the created user object.
+    - Fails if the email is already registered.
+    """
     existing_user = await get_user_by_email(db, user_create.email)
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -38,6 +49,12 @@ async def login_user(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
 ) -> Token:
+    """
+    Authenticate a user and return JWT access and refresh tokens.
+
+    - Expects OAuth2 form fields: `username` (email) and `password`.
+    - Returns access token, refresh token, and token type.
+    """
     user: User | None = await get_user_by_email(db, form_data.username)
 
     if not user or not verify_password(form_data.password, user.hashed_password):
@@ -48,26 +65,28 @@ async def login_user(
         )
 
     now = datetime.now(timezone.utc)
-    access_exp = now + timedelta(minutes=settings.access_token_expire_minutes)
-    refresh_exp = now + timedelta(minutes=settings.refresh_token_expire_minutes)
+    access_exp_delta = timedelta(minutes=settings.access_token_expire_minutes)
+    refresh_exp_delta = timedelta(minutes=settings.refresh_token_expire_minutes)
     jti = str(uuid4())
 
     access_token = create_access_token(
-        data={"sub": str(user.id), "exp": int(access_exp.timestamp())}
+        data={"sub": str(user.id)},
+        expires_delta=access_exp_delta
     )
     refresh_token = create_refresh_token(
         data={
             "sub": str(user.id),
             "iat": int(now.timestamp()),
-            "exp": int(refresh_exp.timestamp()),
             "jti": jti,
-        }
+        },
+        expires_delta=refresh_exp_delta
     )
 
     user.last_refresh_jti = jti
     db.add(user)
     await db.commit()
 
+    refresh_exp = now + refresh_exp_delta
     await save_refresh_token(db, jti, user.id, refresh_exp)
 
     return Token(
@@ -79,6 +98,12 @@ async def login_user(
 
 @router.get("/me", response_model=UserOut, tags=["auth"])
 async def read_current_user(current_user: User = Depends(get_current_user)):
+    """
+    Get the current authenticated user's data.
+
+    - Requires a valid access token.
+    - Returns the user object.
+    """
     return current_user
 
 
@@ -87,54 +112,60 @@ async def refresh_access_token(
     refresh_token: str = Body(..., embed=True),
     db: AsyncSession = Depends(get_db),
 ) -> Token:
+    """
+    Refresh expired access token using a valid refresh token.
+
+    - Requires valid refresh token in the body.
+    - Implements reuse protection and rotation via `jti`.
+    - Returns new access and refresh tokens.
+    """
     try:
         payload = jwt.decode(
             refresh_token,
             settings.secret_key,
             algorithms=[settings.algorithm],
         )
-        user_id = payload.get("sub")
+        sub = payload.get("sub")
         jti = payload.get("jti")
 
-        if not isinstance(user_id, str) or not user_id.isdigit():
+        if not isinstance(sub, str) or not sub.isdigit():
             raise HTTPException(status_code=401, detail="Invalid token payload")
-        if not jti:
+
+        if not isinstance(jti, str):
             raise HTTPException(status_code=401, detail="Invalid refresh token")
 
-        user = await db.get(User, int(user_id))
+        user_id = int(sub)
+        user = await db.get(User, user_id)
         if user is None:
             raise HTTPException(status_code=401, detail="User no longer exists")
 
-        # Chain reuse protection: Only the last jti should be valid
         if user.last_refresh_jti != jti:
             await auth_service.revoke_refresh_token(db, user)
             raise HTTPException(status_code=401, detail="Refresh token invalid or reused")
 
-        # Check it's still valid in DB
         valid_in_db = await is_refresh_token_valid(db, jti)
         if not valid_in_db:
             await auth_service.revoke_refresh_token(db, user)
             raise HTTPException(status_code=401, detail="Refresh token invalid or reused")
 
-        # Issue new tokens
         now = datetime.now(timezone.utc)
-        access_exp = now + timedelta(minutes=settings.access_token_expire_minutes)
-        new_refresh_exp = now + timedelta(minutes=settings.refresh_token_expire_minutes)
         new_jti = str(uuid4())
 
         access_token = create_access_token(
-            data={"sub": user_id, "exp": int(access_exp.timestamp())}
+            data={"sub": str(user_id)},
+            expires_delta=timedelta(minutes=settings.access_token_expire_minutes)
         )
         new_refresh_token = create_refresh_token(
             data={
-                "sub": user_id,
+                "sub": str(user_id),
                 "iat": int(now.timestamp()),
-                "exp": int(new_refresh_exp.timestamp()),
                 "jti": new_jti,
-            }
+            },
+            expires_delta=timedelta(minutes=settings.refresh_token_expire_minutes)
         )
 
         await deactivate_refresh_token(db, jti)
+        new_refresh_exp = now + timedelta(minutes=settings.refresh_token_expire_minutes)
         await save_refresh_token(db, new_jti, user.id, new_refresh_exp)
 
         user.last_refresh_jti = new_jti
@@ -152,17 +183,27 @@ async def refresh_access_token(
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
 
-@router.post("/logout", status_code=204, tags=["auth"])
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, tags=["auth"])
 async def logout_user(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> Response:
+    """
+    Log the user out by revoking their current refresh token.
+
+    - Requires valid access token.
+    - Prevents reuse of the current refresh token.
+    """
     await auth_service.revoke_refresh_token(db, current_user)
-    return
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/admin-only", tags=["admin"])
-async def admin_dashboard(
-    user = Depends(require_role("admin"))
-):
+async def admin_dashboard(user: User = Depends(require_role("admin"))):
+    """
+    Admin-only protected endpoint.
+
+    - Requires role-based access: `admin`.
+    - Returns a greeting with the admin's email.
+    """
     return {"message": f"Welcome, admin {user.email}"}

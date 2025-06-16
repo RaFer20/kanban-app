@@ -42,7 +42,7 @@ class User(Base):
 
     role: Mapped[UserRole] = mapped_column(
         SQLEnum(UserRole, name="userrole"),
-        default=UserRole.user,  # lowercase here
+        default=UserRole.user,
         nullable=False
     )
 
