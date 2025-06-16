@@ -43,7 +43,9 @@ def create_refresh_token(data: dict, expires_delta: timedelta | None = None) -> 
     expire = datetime.now(tz=timezone.utc) + (
         expires_delta or timedelta(minutes=settings.refresh_token_expire_minutes)
     )
-    jti = str(uuid4())  # Generate a unique identifier for the token
+    # Only generate a new jti if not already present
+    if "jti" not in to_encode:
+        to_encode["jti"] = str(uuid4())
     to_encode.update({"exp": int(expire.timestamp())})
     encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
     return encoded_jwt

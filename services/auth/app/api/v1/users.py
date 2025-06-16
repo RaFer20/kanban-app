@@ -1,6 +1,7 @@
 # Standard lib
 from datetime import datetime, timezone, timedelta
 from uuid import uuid4
+import logging
 
 # Third-party
 from fastapi import APIRouter, Depends, HTTPException, status, Body, Response
@@ -22,25 +23,24 @@ from app.services.refresh_tokens import (
     create_refresh_token as save_refresh_token,
     deactivate_refresh_token,
     is_refresh_token_valid,
+    get_all_valid_refresh_tokens_for_user,
+    get_refresh_token_from_db,
 )
-
 
 settings = get_settings()
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.post("/users/", response_model=UserOut, tags=["auth"])
 async def register_user(user_create: UserCreate, db: AsyncSession = Depends(get_db)):
-    """
-    Register a new user with an email and password.
-
-    - Returns the created user object.
-    - Fails if the email is already registered.
-    """
+    logger.debug(f"Registering user with email: {user_create.email}")
     existing_user = await get_user_by_email(db, user_create.email)
     if existing_user:
+        logger.warning(f"Registration failed - email already registered: {user_create.email}")
         raise HTTPException(status_code=400, detail="Email already registered")
     user = await create_user(db, user_create)
+    logger.info(f"User registered successfully: {user.email} (ID: {user.id})")
     return user
 
 
@@ -49,15 +49,11 @@ async def login_user(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
 ) -> Token:
-    """
-    Authenticate a user and return JWT access and refresh tokens.
-
-    - Expects OAuth2 form fields: `username` (email) and `password`.
-    - Returns access token, refresh token, and token type.
-    """
+    logger.debug(f"Login attempt for email: {form_data.username}")
     user: User | None = await get_user_by_email(db, form_data.username)
 
     if not user or not verify_password(form_data.password, user.hashed_password):
+        logger.warning(f"Failed login attempt for email: {form_data.username}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -71,7 +67,7 @@ async def login_user(
 
     access_token = create_access_token(
         data={"sub": str(user.id)},
-        expires_delta=access_exp_delta
+        expires_delta=access_exp_delta,
     )
     refresh_token = create_refresh_token(
         data={
@@ -79,16 +75,19 @@ async def login_user(
             "iat": int(now.timestamp()),
             "jti": jti,
         },
-        expires_delta=refresh_exp_delta
+        expires_delta=refresh_exp_delta,
     )
 
+    await db.refresh(user)
     user.last_refresh_jti = jti
     db.add(user)
     await db.commit()
 
     refresh_exp = now + refresh_exp_delta
     await save_refresh_token(db, jti, user.id, refresh_exp)
+    await db.commit()
 
+    logger.info(f"User logged in successfully: {user.email} (ID: {user.id}), JTI: {jti}")
     return Token(
         access_token=access_token,
         refresh_token=refresh_token,
@@ -98,12 +97,7 @@ async def login_user(
 
 @router.get("/me", response_model=UserOut, tags=["auth"])
 async def read_current_user(current_user: User = Depends(get_current_user)):
-    """
-    Get the current authenticated user's data.
-
-    - Requires a valid access token.
-    - Returns the user object.
-    """
+    logger.debug(f"Fetching current user data for user id: {current_user.id}")
     return current_user
 
 
@@ -112,13 +106,7 @@ async def refresh_access_token(
     refresh_token: str = Body(..., embed=True),
     db: AsyncSession = Depends(get_db),
 ) -> Token:
-    """
-    Refresh expired access token using a valid refresh token.
-
-    - Requires valid refresh token in the body.
-    - Implements reuse protection and rotation via `jti`.
-    - Returns new access and refresh tokens.
-    """
+    logger.debug("Refresh token endpoint called")
     try:
         payload = jwt.decode(
             refresh_token,
@@ -128,24 +116,41 @@ async def refresh_access_token(
         sub = payload.get("sub")
         jti = payload.get("jti")
 
+        logger.debug(f"Decoded refresh token payload: sub={sub}, jti={jti}")
+
         if not isinstance(sub, str) or not sub.isdigit():
+            logger.error("Invalid 'sub' claim in refresh token")
             raise HTTPException(status_code=401, detail="Invalid token payload")
 
         if not isinstance(jti, str):
+            logger.error("Invalid 'jti' claim in refresh token")
             raise HTTPException(status_code=401, detail="Invalid refresh token")
 
         user_id = int(sub)
         user = await db.get(User, user_id)
         if user is None:
+            logger.error(f"User ID {user_id} from token no longer exists")
             raise HTTPException(status_code=401, detail="User no longer exists")
 
+        await db.refresh(user)
+
+        # Log all valid refresh tokens for this user before validation
+        tokens_before = await get_all_valid_refresh_tokens_for_user(db, user.id)
+        logger.debug(f"[PRE] Valid refresh tokens for user {user.id}: {[t.jti for t in tokens_before]}")
+
+        # Log the token being checked
+        token_in_db = await get_refresh_token_from_db(db, jti, user.id)
+        logger.debug(f"Token in DB for jti={jti}: {token_in_db}")
+
         if user.last_refresh_jti != jti:
-            await auth_service.revoke_refresh_token(db, user)
+            logger.warning(f"Refresh token reuse detected for user ID {user_id}: token JTI {jti} does not match last_refresh_jti {user.last_refresh_jti}")
+            await auth_service.revoke_refresh_token(db, user, jti=jti, clear_jti=False)
             raise HTTPException(status_code=401, detail="Refresh token invalid or reused")
 
         valid_in_db = await is_refresh_token_valid(db, jti)
         if not valid_in_db:
-            await auth_service.revoke_refresh_token(db, user)
+            logger.warning(f"Refresh token JTI {jti} is not valid or expired in DB for user ID {user_id}")
+            await auth_service.revoke_refresh_token(db, user, jti=jti, clear_jti=False)
             raise HTTPException(status_code=401, detail="Refresh token invalid or reused")
 
         now = datetime.now(timezone.utc)
@@ -153,7 +158,7 @@ async def refresh_access_token(
 
         access_token = create_access_token(
             data={"sub": str(user_id)},
-            expires_delta=timedelta(minutes=settings.access_token_expire_minutes)
+            expires_delta=timedelta(minutes=settings.access_token_expire_minutes),
         )
         new_refresh_token = create_refresh_token(
             data={
@@ -161,25 +166,41 @@ async def refresh_access_token(
                 "iat": int(now.timestamp()),
                 "jti": new_jti,
             },
-            expires_delta=timedelta(minutes=settings.refresh_token_expire_minutes)
+            expires_delta=timedelta(minutes=settings.refresh_token_expire_minutes),
         )
 
         await deactivate_refresh_token(db, jti)
+        await db.commit()
+
         new_refresh_exp = now + timedelta(minutes=settings.refresh_token_expire_minutes)
-        await save_refresh_token(db, new_jti, user.id, new_refresh_exp)
+        logger.debug(f"Saving new refresh token JTI: {new_jti} for user ID {user_id}")
 
         user.last_refresh_jti = new_jti
         db.add(user)
-        await db.commit()
+        await save_refresh_token(db, new_jti, user.id, new_refresh_exp)
+        await db.flush()
 
+        tokens_mid = await get_all_valid_refresh_tokens_for_user(db, user.id)
+        logger.debug(f"[MID] Valid refresh tokens for user {user.id}: {[t.jti for t in tokens_mid]}")
+
+        await db.commit()
+        await db.refresh(user)
+        logger.debug(f"DB refresh complete for user ID {user_id}")
+
+        tokens_after = await get_all_valid_refresh_tokens_for_user(db, user.id)
+        logger.debug(f"[POST] Valid refresh tokens for user {user.id}: {[t.jti for t in tokens_after]}")
+
+        logger.info(f"Refresh token rotated successfully for user ID {user_id}, new JTI: {new_jti}")
         return Token(
             access_token=access_token,
             refresh_token=new_refresh_token,
             token_type="bearer",
         )
     except ExpiredSignatureError:
+        logger.warning("Refresh token expired")
         raise HTTPException(status_code=401, detail="Refresh token expired")
     except JWTError:
+        logger.error("Invalid refresh token encountered during decode")
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
 
@@ -188,22 +209,13 @@ async def logout_user(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
-    """
-    Log the user out by revoking their current refresh token.
-
-    - Requires valid access token.
-    - Prevents reuse of the current refresh token.
-    """
+    logger.info(f"Logging out user ID {current_user.id}, email {current_user.email}")
     await auth_service.revoke_refresh_token(db, current_user)
+    logger.info(f"User ID {current_user.id} logged out successfully")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/admin-only", tags=["admin"])
 async def admin_dashboard(user: User = Depends(require_role("admin"))):
-    """
-    Admin-only protected endpoint.
-
-    - Requires role-based access: `admin`.
-    - Returns a greeting with the admin's email.
-    """
+    logger.debug(f"Admin access by user ID {user.id}, email {user.email}")
     return {"message": f"Welcome, admin {user.email}"}

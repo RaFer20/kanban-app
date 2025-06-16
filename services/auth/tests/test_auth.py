@@ -1,7 +1,9 @@
 import uuid
 import pytest
+import asyncio
 from jose import jwt
 from app.core.config import get_settings
+
 
 settings = get_settings()
 
@@ -239,3 +241,53 @@ async def test_refresh_token_contains_iat_claim(client):
 
     assert "iat" in payload
     assert isinstance(payload["iat"], int)
+
+
+
+@pytest.mark.asyncio
+async def test_refresh_token_reuse_blocked(client):
+    email = f"user_{uuid.uuid4()}@example.com"
+    password = "testpassword"
+    
+    # Register new user
+    res_register = await client.post("/api/v1/users/", json={"email": email, "password": password})
+    assert res_register.status_code == 200
+    
+    # Login to get initial tokens
+    login_res = await client.post("/api/v1/token", data={"username": email, "password": password})
+    assert login_res.status_code == 200
+    tokens = login_res.json()
+    refresh_token_1 = tokens["refresh_token"]
+    print("refresh_token_1:", refresh_token_1)
+
+    # Use refresh token to get new tokens (first refresh)
+    refresh_res_1 = await client.post("/api/v1/refresh", json={"refresh_token": refresh_token_1})
+    assert refresh_res_1.status_code == 200
+    refresh_token_2 = refresh_res_1.json()["refresh_token"]
+    print("refresh_token_2:", refresh_token_2)
+
+    await asyncio.sleep(0.1)
+
+    # Using old refresh token again should fail (reuse detected)
+    refresh_res_reuse = await client.post("/api/v1/refresh", json={"refresh_token": refresh_token_1})
+    assert refresh_res_reuse.status_code == 401
+
+    # Use second refresh token to get new tokens (second refresh)
+    refresh_res_2 = await client.post("/api/v1/refresh", json={"refresh_token": refresh_token_2})
+    print("refresh_res_2.status_code:", refresh_res_2.status_code)
+    print("refresh_res_2.json():", refresh_res_2.json())
+    assert refresh_res_2.status_code == 200
+    refresh_token_3 = refresh_res_2.json()["refresh_token"]
+    print("refresh_token_3:", refresh_token_3)
+
+    await asyncio.sleep(0.1)
+
+    # Using second refresh token again should fail (reuse detected)
+    refresh_res_reuse2 = await client.post("/api/v1/refresh", json={"refresh_token": refresh_token_2})
+    assert refresh_res_reuse2.status_code == 401
+
+    # The latest refresh token should still work (third refresh)
+    refresh_res_3 = await client.post("/api/v1/refresh", json={"refresh_token": refresh_token_3})
+    print("refresh_res_3.status_code:", refresh_res_3.status_code)
+    print("refresh_res_3.json():", refresh_res_3.json())
+    assert refresh_res_3.status_code == 200
