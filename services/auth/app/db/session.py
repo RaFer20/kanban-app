@@ -1,3 +1,9 @@
+"""
+Database session and engine setup for the Auth Service.
+
+Defines the async SQLAlchemy engine and session factory, and provides a dependency for obtaining a database session.
+"""
+
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from collections.abc import AsyncGenerator
 
@@ -16,7 +22,12 @@ AsyncSessionLocal = async_sessionmaker(
 )
 
 
-# Dependency that provides a database session
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    """
+    Dependency that provides an async database session.
+
+    Yields:
+        AsyncSession: An active SQLAlchemy async session.
+    """
     async with AsyncSessionLocal() as session:
         yield session

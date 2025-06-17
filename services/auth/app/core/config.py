@@ -1,3 +1,10 @@
+"""
+Configuration module for the Auth Service.
+
+Defines the Settings class for application configuration, which loads values from environment variables or a .env file.
+Provides a cached get_settings() function for dependency injection.
+"""
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 from pydantic import EmailStr, Field
@@ -15,7 +22,7 @@ class Settings(BaseSettings):
     database_url: str  # Async URL (used by app via SQLAlchemy+asyncpg)
     database_url_sync: str  # Sync URL (used by Alembic)
 
-    # Optional: used in wait-for-postgres or logging
+    # Optional: used in logging
     db_host: str = Field(default="localhost")
     db_port: str = Field(default="5432")
 
@@ -37,4 +44,7 @@ class Settings(BaseSettings):
 
 @lru_cache()
 def get_settings() -> Settings:
+    """
+    Returns a cached instance of the Settings object for use throughout the application.
+    """
     return Settings() # type: ignore
