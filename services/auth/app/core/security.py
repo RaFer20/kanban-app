@@ -1,3 +1,10 @@
+"""
+Security utilities for the Auth Service.
+
+Provides functions for password hashing and verification, as well as JWT access and refresh token creation.
+Uses bcrypt for password hashing and jose for JWT encoding.
+"""
+
 from passlib.context import CryptContext
 from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt

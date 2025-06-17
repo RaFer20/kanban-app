@@ -34,6 +34,16 @@ logger = logging.getLogger(__name__)
 
 @router.post("/users/", response_model=UserOut, tags=["auth"])
 async def register_user(user_create: UserCreate, db: AsyncSession = Depends(get_db)):
+    """
+    Register a new user.
+
+    Args:
+        user_create (UserCreate): The user registration data.
+        db (AsyncSession): The database session.
+
+    Returns:
+        UserOut: The created user.
+    """
     logger.debug(f"Registering user with email: {user_create.email}")
     existing_user = await get_user_by_email(db, user_create.email)
     if existing_user:
@@ -49,6 +59,16 @@ async def login_user(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
 ) -> Token:
+    """
+    Authenticate a user and return access and refresh tokens.
+
+    Args:
+        form_data (OAuth2PasswordRequestForm): The login form data.
+        db (AsyncSession): The database session.
+
+    Returns:
+        Token: The access and refresh tokens.
+    """
     logger.debug(f"Login attempt for email: {form_data.username}")
     user: User | None = await get_user_by_email(db, form_data.username)
 
@@ -97,6 +117,15 @@ async def login_user(
 
 @router.get("/me", response_model=UserOut, tags=["auth"])
 async def read_current_user(current_user: User = Depends(get_current_user)):
+    """
+    Get the currently authenticated user's information.
+
+    Args:
+        current_user (User): The authenticated user.
+
+    Returns:
+        UserOut: The current user's data.
+    """
     logger.debug(f"Fetching current user data for user id: {current_user.id}")
     return current_user
 
@@ -106,6 +135,19 @@ async def refresh_access_token(
     refresh_token: str = Body(..., embed=True),
     db: AsyncSession = Depends(get_db),
 ) -> Token:
+    """
+    Rotate and return new access and refresh tokens using a valid refresh token.
+
+    Args:
+        refresh_token (str): The refresh token to use for rotation.
+        db (AsyncSession): The database session.
+
+    Returns:
+        Token: The new access and refresh tokens.
+
+    Raises:
+        HTTPException: If the refresh token is invalid, expired, or reused.
+    """
     logger.debug("Refresh token endpoint called")
     try:
         payload = jwt.decode(
@@ -209,6 +251,16 @@ async def logout_user(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
+    """
+    Log out the current user by revoking all active refresh tokens.
+
+    Args:
+        current_user (User): The authenticated user.
+        db (AsyncSession): The database session.
+
+    Returns:
+        Response: 204 No Content on success.
+    """
     logger.info(f"Logging out user ID {current_user.id}, email {current_user.email}")
     await auth_service.revoke_refresh_token(db, current_user)
     logger.info(f"User ID {current_user.id} logged out successfully")
@@ -217,5 +269,14 @@ async def logout_user(
 
 @router.get("/admin-only", tags=["admin"])
 async def admin_dashboard(user: User = Depends(require_role("admin"))):
+    """
+    Example admin-only endpoint.
+
+    Args:
+        user (User): The authenticated admin user.
+
+    Returns:
+        dict: A welcome message for the admin.
+    """
     logger.debug(f"Admin access by user ID {user.id}, email {user.email}")
     return {"message": f"Welcome, admin {user.email}"}

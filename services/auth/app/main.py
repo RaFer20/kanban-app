@@ -1,3 +1,11 @@
+"""
+Main entrypoint for the Auth Service FastAPI application.
+
+- Sets up the FastAPI app with CORS middleware and API routes.
+- Seeds a guest user on startup if needed.
+- Configures logging and application lifespan events.
+"""
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,12 +28,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title=settings.project_name, lifespan=lifespan)
 
-
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s %(levelname)s %(name)s %(message)s',
 )
-
 
 # Middleware for CORS
 app.add_middleware(
