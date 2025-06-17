@@ -1,7 +1,8 @@
 import uuid
 import pytest
 import asyncio
-from jose import jwt
+import time
+from jose import jwt, JWTError
 from app.core.config import get_settings
 
 
@@ -9,12 +10,14 @@ settings = get_settings()
 
 @pytest.mark.asyncio
 async def test_example(client):
+    """Health check endpoint returns 200 and expected status."""
     response = await client.get("/api/v1/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
 
 @pytest.mark.asyncio
 async def test_register_user(client):
+    """Register a new user with valid credentials."""
     email = f"newuser_{uuid.uuid4()}@example.com"
     response = await client.post("/api/v1/users/", json={
         "email": email,
@@ -25,6 +28,7 @@ async def test_register_user(client):
 
 @pytest.mark.asyncio
 async def test_login_success(client):
+    """Login succeeds with correct credentials and returns tokens."""
     email = f"testuser_{uuid.uuid4()}@example.com"
     register_response = await client.post("/api/v1/users/", json={
         "email": email,
@@ -43,6 +47,7 @@ async def test_login_success(client):
 
 @pytest.mark.asyncio
 async def test_login_invalid_password(client):
+    """Login fails with incorrect password."""
     email = f"testuser_{uuid.uuid4()}@example.com"
     await client.post("/api/v1/users/", json={
         "email": email,
@@ -56,6 +61,7 @@ async def test_login_invalid_password(client):
 
 @pytest.mark.asyncio
 async def test_refresh_token_success(client):
+    """Refresh token endpoint returns new access token on valid refresh."""
     email = f"testuser_{uuid.uuid4()}@example.com"
     await client.post("/api/v1/users/", json={
         "email": email,
@@ -73,6 +79,7 @@ async def test_refresh_token_success(client):
 
 @pytest.mark.asyncio
 async def test_register_duplicate_user(client):
+    """Registering with an existing email fails."""
     email = f"dupuser_{uuid.uuid4()}@example.com"
     payload = {"email": email, "password": "password123"}
     res1 = await client.post("/api/v1/users/", json=payload)
@@ -82,6 +89,7 @@ async def test_register_duplicate_user(client):
 
 @pytest.mark.asyncio
 async def test_register_invalid_email_format(client):
+    """Registering with an invalid email format fails."""
     response = await client.post("/api/v1/users/", json={
         "email": "not-an-email",
         "password": "somepassword"
@@ -90,6 +98,7 @@ async def test_register_invalid_email_format(client):
 
 @pytest.mark.asyncio
 async def test_login_wrong_password(client):
+    """Login fails with wrong password."""
     email = f"wrongpass_{uuid.uuid4()}@example.com"
     await client.post("/api/v1/users/", json={
         "email": email,
@@ -103,6 +112,7 @@ async def test_login_wrong_password(client):
 
 @pytest.mark.asyncio
 async def test_logout_revokes_refresh_token(client):
+    """Logout revokes refresh token and prevents its reuse."""
     email = f"logoutuser_{uuid.uuid4()}@example.com"
     password = "logoutpassword"
     await client.post("/api/v1/users/", json={"email": email, "password": password})
@@ -124,6 +134,7 @@ async def test_logout_revokes_refresh_token(client):
 
 @pytest.mark.asyncio
 async def test_refresh_token_invalid_token(client):
+    """Invalid refresh token is rejected."""
     invalid_token = "this.is.not.a.valid.token"
     res = await client.post("/api/v1/refresh", json={"refresh_token": invalid_token})
     assert res.status_code == 401
@@ -131,11 +142,13 @@ async def test_refresh_token_invalid_token(client):
 
 @pytest.mark.asyncio
 async def test_refresh_token_missing_token(client):
+    """Missing refresh token in request is rejected."""
     res = await client.post("/api/v1/refresh", json={})
     assert res.status_code in (400, 422)
 
 @pytest.mark.asyncio
 async def test_refresh_token_expired_token(client):
+    """Refresh token is invalid after logout (simulate expiry/revocation)."""
     email = f"expireduser_{uuid.uuid4()}@example.com"
     password = "expiredpassword"
     await client.post("/api/v1/users/", json={"email": email, "password": password})
@@ -148,9 +161,7 @@ async def test_refresh_token_expired_token(client):
 
 @pytest.mark.asyncio
 async def test_refresh_token_double_use(client):
-    """
-    Ensure that a refresh token cannot be used more than once.
-    """
+    """Refresh token cannot be used more than once (reuse is blocked)."""
     email = f"doubleuse_{uuid.uuid4()}@example.com"
     password = "doublepass"
     await client.post("/api/v1/users/", json={"email": email, "password": password})
@@ -171,9 +182,7 @@ async def test_refresh_token_double_use(client):
 
 @pytest.mark.asyncio
 async def test_refresh_token_for_another_user(client):
-    """
-    Ensure that a refresh token cannot be used by another user.
-    """
+    """Refresh token cannot be used by another user (cross-user misuse)."""
     # Register two users
     email1 = f"user1_{uuid.uuid4()}@example.com"
     email2 = f"user2_{uuid.uuid4()}@example.com"
@@ -195,9 +204,7 @@ async def test_refresh_token_for_another_user(client):
 
 @pytest.mark.asyncio
 async def test_refresh_token_revoked_after_logout(client):
-    """
-    Ensure that after logout, the refresh token is revoked and cannot be used.
-    """
+    """Refresh token is revoked after logout and cannot be reused."""
     email = f"logoutrevoked_{uuid.uuid4()}@example.com"
     password = "logoutpass"
     await client.post("/api/v1/users/", json={"email": email, "password": password})
@@ -218,9 +225,7 @@ async def test_refresh_token_revoked_after_logout(client):
 
 @pytest.mark.asyncio
 async def test_refresh_token_contains_iat_claim(client):
-    """
-    Verify that the refresh token payload contains the 'iat' claim.
-    """
+    """Refresh token payload contains 'iat' (issued at) claim."""
     email = f"iatuser_{uuid.uuid4()}@example.com"
     password = "iatpass"
 
@@ -246,6 +251,7 @@ async def test_refresh_token_contains_iat_claim(client):
 
 @pytest.mark.asyncio
 async def test_refresh_token_reuse_blocked(client):
+    """Each refresh token can only be used once; reuse is blocked."""
     email = f"user_{uuid.uuid4()}@example.com"
     password = "testpassword"
     
@@ -291,3 +297,30 @@ async def test_refresh_token_reuse_blocked(client):
     print("refresh_res_3.status_code:", refresh_res_3.status_code)
     print("refresh_res_3.json():", refresh_res_3.json())
     assert refresh_res_3.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_access_token_tampering(client):
+    """Tampered access tokens are rejected by protected endpoints."""
+    email = f"tampertest_{uuid.uuid4()}@example.com"
+    password = "tamperpass"
+    await client.post("/api/v1/users/", json={"email": email, "password": password})
+    login_res = await client.post("/api/v1/token", data={"username": email, "password": password})
+    tokens = login_res.json()
+    access_token = tokens["access_token"]
+
+    # Tamper with the payload (change a character)
+    parts = access_token.split('.')
+    assert len(parts) == 3
+    import base64
+    import json
+
+    payload_bytes = base64.urlsafe_b64decode(parts[1] + '==')
+    payload = json.loads(payload_bytes)
+    payload["sub"] = "hacker@example.com"
+    new_payload = base64.urlsafe_b64encode(json.dumps(payload).encode()).decode().rstrip("=")
+    tampered_token = f"{parts[0]}.{new_payload}.{parts[2]}"
+
+    # Use the correct protected endpoint
+    res = await client.get("/api/v1/me", headers={"Authorization": f"Bearer {tampered_token}"})
+    assert res.status_code == 401 or res.status_code == 403
