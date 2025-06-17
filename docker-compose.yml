@@ -20,11 +20,13 @@ services:
     container_name: auth-service
     depends_on:
       - auth-db
+      - otel-collector
     environment:
       ENV: docker
       POSTGRES_USER: kanban_user
       POSTGRES_PASSWORD: kanban_pass
       POSTGRES_DB: authdb
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
     env_file:
       - ./services/auth/.env.docker
     volumes:
@@ -32,6 +34,16 @@ services:
     ports:
       - "8000:8000"
     command: ["/bin/bash", "/start.sh"]
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-collector
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    command: ["--config", "/etc/otel-collector-config.yaml"]
+    ports:
+      - "4317:4317"  # gRPC receiver for OTLP
+      - "4318:4318"  # HTTP 
 
 volumes:
   auth-db-data:

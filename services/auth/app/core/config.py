@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     guest_email: EmailStr = "guest@example.com"
     guest_password: str = "guest123"
 
+    # OpenTelemetry config
+    otel_exporter_otlp_endpoint: str = "http://otel-collector:4317"
+    otel_resource_attributes: str = "service.name=auth-service"
+
     model_config = SettingsConfigDict(
         env_file=".env.docker" if os.getenv("ENV", "local") == "docker" else ".env",
         env_file_encoding="utf-8",
