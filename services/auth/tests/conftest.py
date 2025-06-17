@@ -9,9 +9,15 @@ from app.db.base import Base
 from app.main import app
 from app.db.session import get_db
 from httpx import AsyncClient, ASGITransport
-
+import os
 # Load environment before engine is created
-load_dotenv(".env.test")
+
+env = os.getenv("ENV", "local")
+if env == "docker":
+    load_dotenv(".env.test.docker")
+else:
+    load_dotenv(".env.test")
+
 DATABASE_URL = os.getenv("TEST_DATABASE_URL")
 if not DATABASE_URL:
     raise ValueError("TEST_DATABASE_URL environment variable is not set")
