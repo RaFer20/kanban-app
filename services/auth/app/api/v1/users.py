@@ -12,6 +12,7 @@ from jose.exceptions import ExpiredSignatureError
 
 # Local
 from app.core.config import get_settings
+from app.core.metrics import user_login_counter, user_registration_counter, refresh_token_usage_counter, admin_action_counter
 from app.core.security import verify_password, create_access_token, create_refresh_token
 from app.db.session import get_db
 from app.dependencies.auth import get_current_user, require_role
@@ -50,6 +51,7 @@ async def register_user(user_create: UserCreate, db: AsyncSession = Depends(get_
         logger.warning(f"Registration failed - email already registered: {user_create.email}")
         raise HTTPException(status_code=400, detail="Email already registered")
     user = await create_user(db, user_create)
+    user_registration_counter.labels(method="password").inc()
     logger.info(f"User registered successfully: {user.email} (ID: {user.id})")
     return user
 
@@ -79,6 +81,9 @@ async def login_user(
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Successful login
+    user_login_counter.labels(method="password").inc()
 
     now = datetime.now(timezone.utc)
     access_exp_delta = timedelta(minutes=settings.access_token_expire_minutes)
@@ -233,6 +238,7 @@ async def refresh_access_token(
         logger.debug(f"[POST] Valid refresh tokens for user {user.id}: {[t.jti for t in tokens_after]}")
 
         logger.info(f"Refresh token rotated successfully for user ID {user_id}, new JTI: {new_jti}")
+        refresh_token_usage_counter.labels(method="refresh").inc()
         return Token(
             access_token=access_token,
             refresh_token=new_refresh_token,
@@ -270,7 +276,7 @@ async def logout_user(
 @router.get("/admin-only", tags=["admin"])
 async def admin_dashboard(user: User = Depends(require_role("admin"))):
     """
-    Example admin-only endpoint.
+    Test admin-only endpoint.
 
     Args:
         user (User): The authenticated admin user.
@@ -278,5 +284,6 @@ async def admin_dashboard(user: User = Depends(require_role("admin"))):
     Returns:
         dict: A welcome message for the admin.
     """
+    admin_action_counter.labels(action="dashboard_access").inc()
     logger.debug(f"Admin access by user ID {user.id}, email {user.email}")
     return {"message": f"Welcome, admin {user.email}"}

@@ -15,6 +15,7 @@ from app.api.v1 import routes
 from app.core.config import get_settings
 from app.db.session import AsyncSessionLocal, engine
 from app.seeds import create_guest_user_if_not_exists
+from app.core import metrics
 
 # Observability imports
 from prometheus_fastapi_instrumentator import Instrumentator
