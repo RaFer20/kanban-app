@@ -40,6 +40,7 @@ uvicorn = {extras = ["standard"], version = "^0.34.3"}
 pytest = "^8.4.0"
 httpx = "^0.28.1"
 pytest-asyncio = "^1.0.0"
+opentelemetry-sdk = "^1.34.1"
 
 [tool.poetry]
 package-mode = false

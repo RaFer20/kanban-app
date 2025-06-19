@@ -1,9 +1,17 @@
+import re
 import uuid
 import pytest
 import asyncio
 import time
+import logging
 from jose import jwt, JWTError
+from unittest.mock import patch
 from app.core.config import get_settings
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry import trace
+from typing import cast
 
 
 settings = get_settings()
@@ -324,3 +332,77 @@ async def test_access_token_tampering(client):
     # Use the correct protected endpoint
     res = await client.get("/api/v1/me", headers={"Authorization": f"Bearer {tampered_token}"})
     assert res.status_code == 401 or res.status_code == 403
+
+@pytest.mark.asyncio
+async def test_metrics_user_registration(client):
+    """Register a user and check registration metric increments."""
+    email = f"metricsuser_{uuid.uuid4()}@example.com"
+    # Register user
+    res = await client.post("/api/v1/users/", json={"email": email, "password": "testpassword"})
+    assert res.status_code in (200, 201)
+    # Fetch metrics
+    metrics_res = await client.get("/metrics")
+    assert metrics_res.status_code == 200
+    # Check registration metric is present and incremented
+    assert re.search(r'app_user_registrations_total\{method="password"\} [1-9][0-9]*\.0', metrics_res.text)
+
+@pytest.mark.asyncio
+async def test_metrics_user_login(client):
+    """Login a user and check login metric increments."""
+    email = f"metricslogin_{uuid.uuid4()}@example.com"
+    # Register user
+    await client.post("/api/v1/users/", json={"email": email, "password": "testpassword"})
+    # Login user
+    res = await client.post("/api/v1/token", data={"username": email, "password": "testpassword"})
+    assert res.status_code == 200
+    # Fetch metrics
+    metrics_res = await client.get("/metrics")
+    assert metrics_res.status_code == 200
+    # Check login metric is present and incremented
+    assert re.search(r'app_user_logins_total\{method="password"\} [1-9][0-9]*\.0', metrics_res.text)
+
+@pytest.mark.asyncio
+async def test_metrics_refresh_token_usage(client):
+    """Use refresh token and check refresh token usage metric increments."""
+    email = f"metricsrefresh_{uuid.uuid4()}@example.com"
+    # Register user
+    await client.post("/api/v1/users/", json={"email": email, "password": "testpassword"})
+    # Login user to get tokens
+    login_res = await client.post("/api/v1/token", data={"username": email, "password": "testpassword"})
+    assert login_res.status_code == 200
+    refresh_token = login_res.json()["refresh_token"]
+    # Use refresh token
+    refresh_res = await client.post("/api/v1/refresh", json={"refresh_token": refresh_token})
+    assert refresh_res.status_code == 200
+    # Fetch metrics
+    metrics_res = await client.get("/metrics")
+    assert metrics_res.status_code == 200
+    # Check refresh token usage metric is present and incremented
+    assert re.search(r'app_refresh_token_usage_total\{method="refresh"\} [1-9][0-9]*\.0', metrics_res.text)
+
+@pytest.mark.asyncio
+async def test_logging_middleware(client, caplog):
+    """Test that request/response logs are emitted for an endpoint."""
+    with caplog.at_level(logging.INFO, logger="auth"):
+        await client.get("/api/v1/health")
+    # Check that both request_start and request_end events are logged
+    assert any("request_start" in record.getMessage() for record in caplog.records)
+    assert any("request_end" in record.getMessage() for record in caplog.records)
+
+@pytest.mark.asyncio
+async def test_tracing_span_created(client):
+    """Test that a tracing span is created for a request."""
+    # Get the global tracer provider (already set by the app)
+    provider = cast(TracerProvider, trace.get_tracer_provider())
+    exporter = InMemorySpanExporter()
+    processor = SimpleSpanProcessor(exporter)
+    provider.add_span_processor(processor)
+
+    # Make a request
+    await client.get("/api/v1/health")
+
+    # Check that at least one span was exported
+    spans = exporter.get_finished_spans()
+    assert len(spans) > 0
+    # Optionally, check span names
+    assert any("/api/v1/health" in span.name for span in spans)
