@@ -13,3 +13,33 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model Board {
+  id        Int      @id @default(autoincrement())
+  name      String
+  columns   Column[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Column {
+  id        Int      @id @default(autoincrement())
+  name      String
+  board     Board    @relation(fields: [boardId], references: [id])
+  boardId   Int
+  tasks     Task[]
+  order     Int      // for ordering columns on the board
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Task {
+  id        Int      @id @default(autoincrement())
+  title     String
+  description String?
+  column    Column   @relation(fields: [columnId], references: [id])
+  columnId  Int
+  order     Int      // for ordering tasks in a column
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
