@@ -1,7 +1,9 @@
 import express from "express";
+import boardRoutes from "./routes/boardRoutes";
 
 const app = express();
 app.use(express.json());
+app.use("/api", boardRoutes);
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
