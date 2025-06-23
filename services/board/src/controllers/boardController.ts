@@ -1,16 +1,12 @@
 import { Request, Response } from 'express';
 import { 
-  createBoard, 
-  getAllBoards, 
-  createColumn, 
-  getColumnsForBoard,
-  createTask,
-  getTasksForColumn,
-  updateColumn,
-  deleteColumn,
-  updateTask,
-  deleteTask,
+  createBoard, getAllBoards, createColumn, getColumnsForBoard,
+  createTask, getTasksForColumn, updateColumn, deleteColumn,
+  updateTask, deleteTask,
 } from '../services/boardService';
+import { createBoardSchema } from "../schemas/boardSchema";
+import { createColumnSchema, updateColumnSchema } from "../schemas/columnSchema";
+import { createTaskSchema, updateTaskSchema } from "../schemas/taskSchema";
 
 /**
  * Express handler for creating a new board.
@@ -24,15 +20,22 @@ export async function createBoardHandler(
   req: Request,
   res: Response
 ): Promise<void> {
-  const { name } = req.body;
-  if (!name) {
-    res.status(400).json({ error: 'Board name is required' });
+  const parseResult = createBoardSchema.safeParse(req.body);
+  if (!parseResult.success) {
+    res.status(400).json({ error: parseResult.error.errors[0].message });
     return;
   }
+  const { name } = parseResult.data;
   try {
     const board = await createBoard(name);
     res.status(201).json(board);
-  } catch (error) {
+  } catch (error: any) {
+    if (error.code === 'P2002') {
+      // Unique constraint failed
+      res.status(409).json({ error: 'A board with this name already exists.' });
+      return;
+    }
+    console.error(error);
     res.status(500).json({ error: 'Failed to create board' });
   }
 }
@@ -66,21 +69,25 @@ export async function createColumnHandler(
   req: Request,
   res: Response
 ): Promise<void> {
-  const { name } = req.body;
+  const parseResult = createColumnSchema.safeParse(req.body);
   const { boardId } = req.params;
-  if (!name || !boardId) {
-    res.status(400).json({ error: 'Column name and board ID are required' });
+  const boardIdNum = Number(boardId);
+  if (!parseResult.success) {
+    res.status(400).json({ error: parseResult.error.errors[0].message });
     return;
   }
-  const boardIdNum = Number(boardId);
   if (isNaN(boardIdNum)) {
     res.status(400).json({ error: 'Board ID must be a number' });
     return;
   }
   try {
-    const column = await createColumn(name, boardIdNum);
+    const column = await createColumn(parseResult.data.name, boardIdNum);
     res.status(201).json(column);
-  } catch (error) {
+  } catch (error: any) {
+    if (error.code === 'P2002') {
+      res.status(409).json({ error: 'A column with this name already exists in this board.' });
+      return;
+    }
     console.error(error);
     res.status(500).json({ error: 'Failed to create column' });
   }
@@ -116,17 +123,26 @@ export async function createTaskHandler(
   req: Request,
   res: Response
 ): Promise<void> {
-  const { title, description } = req.body;
+  const parseResult = createTaskSchema.safeParse(req.body);
   const { columnId } = req.params;
   const columnIdNum = Number(columnId);
-  if (!title || isNaN(columnIdNum)) {
-    res.status(400).json({ error: 'Task title and valid column ID are required' });
+  if (!parseResult.success) {
+    res.status(400).json({ error: parseResult.error.errors[0].message });
+    return;
+  }
+  if (isNaN(columnIdNum)) {
+    res.status(400).json({ error: 'Column ID must be a number' });
     return;
   }
   try {
-    const task = await createTask(title, columnIdNum, description);
+    const task = await createTask(parseResult.data.title, columnIdNum, parseResult.data.description);
     res.status(201).json(task);
-  } catch (error) {
+  } catch (error: any) {
+    if (error.code === 'P2002') {
+      res.status(409).json({ error: 'A task with this title already exists in this column.' });
+      return;
+    }
+    console.error(error);
     res.status(500).json({ error: 'Failed to create task' });
   }
 }
@@ -158,17 +174,26 @@ export async function getTasksForColumnHandler(
  * @route PATCH /api/columns/:columnId
  */
 export async function updateColumnHandler(req: Request, res: Response): Promise<void> {
+  const parseResult = updateColumnSchema.safeParse(req.body);
   const { columnId } = req.params;
-  const data = req.body;
   const columnIdNum = Number(columnId);
+  if (!parseResult.success) {
+    res.status(400).json({ error: parseResult.error.errors[0].message });
+    return;
+  }
   if (isNaN(columnIdNum)) {
     res.status(400).json({ error: 'Column ID must be a number' });
     return;
   }
   try {
-    const column = await updateColumn(columnIdNum, data);
+    const column = await updateColumn(columnIdNum, parseResult.data);
+    if (!column) {
+      res.status(404).json({ error: 'Column not found' });
+      return;
+    }
     res.json(column);
-  } catch (error) {
+  } catch (error: any) {
+    console.error(error);
     res.status(500).json({ error: 'Failed to update column' });
   }
 }
@@ -186,8 +211,13 @@ export async function deleteColumnHandler(req: Request, res: Response): Promise<
   }
   try {
     const column = await deleteColumn(columnIdNum);
+    if (!column) {
+      res.status(404).json({ error: 'Column not found' });
+      return;
+    }
     res.json(column);
-  } catch (error) {
+  } catch (error: any) {
+    console.error(error);
     res.status(500).json({ error: 'Failed to delete column' });
   }
 }
@@ -197,17 +227,26 @@ export async function deleteColumnHandler(req: Request, res: Response): Promise<
  * @route PATCH /api/tasks/:taskId
  */
 export async function updateTaskHandler(req: Request, res: Response): Promise<void> {
+  const parseResult = updateTaskSchema.safeParse(req.body);
   const { taskId } = req.params;
-  const data = req.body;
   const taskIdNum = Number(taskId);
+  if (!parseResult.success) {
+    res.status(400).json({ error: parseResult.error.errors[0].message });
+    return;
+  }
   if (isNaN(taskIdNum)) {
     res.status(400).json({ error: 'Task ID must be a number' });
     return;
   }
   try {
-    const task = await updateTask(taskIdNum, data);
+    const task = await updateTask(taskIdNum, parseResult.data);
+    if (!task) {
+      res.status(404).json({ error: 'Task not found' });
+      return;
+    }
     res.json(task);
-  } catch (error) {
+  } catch (error: any) {
+    console.error(error);
     res.status(500).json({ error: 'Failed to update task' });
   }
 }
@@ -225,8 +264,13 @@ export async function deleteTaskHandler(req: Request, res: Response): Promise<vo
   }
   try {
     const task = await deleteTask(taskIdNum);
+    if (!task) {
+      res.status(404).json({ error: 'Task not found' });
+      return;
+    }
     res.json(task);
-  } catch (error) {
+  } catch (error: any) {
+    console.error(error);
     res.status(500).json({ error: 'Failed to delete task' });
   }
 }

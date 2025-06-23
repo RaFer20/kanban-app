@@ -28,18 +28,22 @@ model Column {
   board     Board    @relation(fields: [boardId], references: [id])
   boardId   Int
   tasks     Task[]
-  order     Int      // for ordering columns on the board
+  order     Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([boardId, name]) // This line enforces unique column names per board
 }
 
 model Task {
-  id        Int      @id @default(autoincrement())
-  title     String
+  id          Int      @id @default(autoincrement())
+  title       String
   description String?
-  column    Column   @relation(fields: [columnId], references: [id])
-  columnId  Int
-  order     Int      // for ordering tasks in a column
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  column      Column   @relation(fields: [columnId], references: [id])
+  columnId    Int
+  order       Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([columnId, title]) // This line enforces unique task titles per column
 }
