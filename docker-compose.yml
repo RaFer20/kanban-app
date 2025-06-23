@@ -65,6 +65,37 @@ services:
     depends_on:
       - prometheus
 
+  board-db:
+    image: postgres:15
+    container_name: board-db
+    restart: always
+    environment:
+      POSTGRES_USER: kanban_user
+      POSTGRES_PASSWORD: kanban_pass
+      POSTGRES_DB: boarddb
+    ports:
+      - "5433:5432" # Use a different host port if 5432 is taken
+    volumes:
+      - board-db-data:/var/lib/postgresql/data
+
+  board:
+    build:
+      context: ./services/board
+    container_name: board-service
+    depends_on:
+      - board-db
+    environment:
+      DATABASE_URL: postgresql://kanban_user:kanban_pass@board-db:5432/boarddb
+    env_file:
+      - ./services/board/.env
+    volumes:
+      - ./services/board:/app
+    ports:
+      - "3000:3000"
+    command: npm run dev
+    # dev
+
 volumes:
   auth-db-data:
   grafana-storage:
+  board-db-data:
