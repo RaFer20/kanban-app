@@ -10,12 +10,28 @@ import { createTaskSchema, updateTaskSchema } from "../schemas/taskSchema";
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 /**
- * Express handler for creating a new board.
- * Expects a JSON body with a "name" field.
- * 
- * @route POST /api/boards
- * @param {Request} req - Express request object
- * @param {Response} res - Express response object
+ * @openapi
+ * /api/boards:
+ *   post:
+ *     summary: Create a new board
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *             properties:
+ *               name:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Board created
+ *       400:
+ *         description: Validation error
+ *       409:
+ *         description: Duplicate board name
  */
 export async function createBoardHandler(
   req: Request,
@@ -42,9 +58,13 @@ export async function createBoardHandler(
 }
 
 /**
- * Express handler for fetching all boards.
- * 
- * @route GET /api/boards
+ * @openapi
+ * /api/boards:
+ *   get:
+ *     summary: List all boards
+ *     responses:
+ *       200:
+ *         description: List of boards
  */
 export async function getAllBoardsHandler(
   req: Request,
@@ -59,12 +79,36 @@ export async function getAllBoardsHandler(
 }
 
 /**
- * Express handler for creating a new column.
- * Expects a JSON body with "name" and "boardId" fields.
- * 
- * @route POST /api/columns
- * @param {Request} req - Express request object
- * @param {Response} res - Express response object
+ * @openapi
+ * /api/boards/{boardId}/columns:
+ *   post:
+ *     summary: Create a column for a board
+ *     parameters:
+ *       - in: path
+ *         name: boardId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *             properties:
+ *               name:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Column created
+ *       400:
+ *         description: Validation error
+ *       404:
+ *         description: Board not found
+ *       409:
+ *         description: Duplicate column name
  */
 export async function createColumnHandler(
   req: Request,
@@ -99,8 +143,19 @@ export async function createColumnHandler(
 }
 
 /**
- * Express handler for fetching all columns for a board.
- * @route GET /api/boards/:boardId/columns
+ * @openapi
+ * /api/boards/{boardId}/columns:
+ *   get:
+ *     summary: List columns for a board
+ *     parameters:
+ *       - in: path
+ *         name: boardId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: List of columns
  */
 export async function getColumnsForBoardHandler(
   req: Request,
@@ -121,8 +176,38 @@ export async function getColumnsForBoardHandler(
 }
 
 /**
- * Express handler for creating a new task in a column.
- * @route POST /api/columns/:columnId/tasks
+ * @openapi
+ * /api/columns/{columnId}/tasks:
+ *   post:
+ *     summary: Create a task in a column
+ *     parameters:
+ *       - in: path
+ *         name: columnId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - title
+ *             properties:
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Task created
+ *       400:
+ *         description: Validation error
+ *       404:
+ *         description: Column not found
+ *       409:
+ *         description: Duplicate task title
  */
 export async function createTaskHandler(
   req: Request,
@@ -157,8 +242,19 @@ export async function createTaskHandler(
 }
 
 /**
- * Express handler for fetching all tasks in a column.
- * @route GET /api/columns/:columnId/tasks
+ * @openapi
+ * /api/columns/{columnId}/tasks:
+ *   get:
+ *     summary: List tasks in a column
+ *     parameters:
+ *       - in: path
+ *         name: columnId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: List of tasks
  */
 export async function getTasksForColumnHandler(
   req: Request,
@@ -179,8 +275,34 @@ export async function getTasksForColumnHandler(
 }
 
 /**
- * Express handler for updating a column.
- * @route PATCH /api/columns/:columnId
+ * @openapi
+ * /api/columns/{columnId}:
+ *   patch:
+ *     summary: Update a column (name/order)
+ *     parameters:
+ *       - in: path
+ *         name: columnId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               order:
+ *                 type: integer
+ *     responses:
+ *       200:
+ *         description: Column updated
+ *       400:
+ *         description: Validation error
+ *       404:
+ *         description: Column not found
  */
 export async function updateColumnHandler(req: Request, res: Response): Promise<void> {
   const parseResult = updateColumnSchema.safeParse(req.body);
@@ -208,8 +330,23 @@ export async function updateColumnHandler(req: Request, res: Response): Promise<
 }
 
 /**
- * Express handler for deleting a column.
- * @route DELETE /api/columns/:columnId
+ * @openapi
+ * /api/columns/{columnId}:
+ *   delete:
+ *     summary: Delete a column
+ *     parameters:
+ *       - in: path
+ *         name: columnId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Column deleted
+ *       400:
+ *         description: Validation error
+ *       404:
+ *         description: Column not found
  */
 export async function deleteColumnHandler(req: Request, res: Response): Promise<void> {
   const { columnId } = req.params;
@@ -232,8 +369,36 @@ export async function deleteColumnHandler(req: Request, res: Response): Promise<
 }
 
 /**
- * Express handler for updating a task.
- * @route PATCH /api/tasks/:taskId
+ * @openapi
+ * /api/tasks/{taskId}:
+ *   patch:
+ *     summary: Update a task
+ *     parameters:
+ *       - in: path
+ *         name: taskId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               order:
+ *                 type: integer
+ *     responses:
+ *       200:
+ *         description: Task updated
+ *       400:
+ *         description: Validation error
+ *       404:
+ *         description: Task not found
  */
 export async function updateTaskHandler(req: Request, res: Response): Promise<void> {
   const parseResult = updateTaskSchema.safeParse(req.body);
@@ -261,8 +426,23 @@ export async function updateTaskHandler(req: Request, res: Response): Promise<vo
 }
 
 /**
- * Express handler for deleting a task.
- * @route DELETE /api/tasks/:taskId
+ * @openapi
+ * /api/tasks/{taskId}:
+ *   delete:
+ *     summary: Delete a task
+ *     parameters:
+ *       - in: path
+ *         name: taskId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Task deleted
+ *       400:
+ *         description: Validation error
+ *       404:
+ *         description: Task not found
  */
 export async function deleteTaskHandler(req: Request, res: Response): Promise<void> {
   const { taskId } = req.params;
