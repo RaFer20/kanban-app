@@ -84,11 +84,11 @@ export async function createColumnHandler(
     const column = await createColumn(parseResult.data.name, boardIdNum);
     res.status(201).json(column);
   } catch (error: any) {
+    console.error('Column creation error:', error);
     if (error.code === 'P2002') {
       res.status(409).json({ error: 'A column with this name already exists in this board.' });
       return;
     }
-    console.error(error);
     res.status(500).json({ error: 'Failed to create column' });
   }
 }

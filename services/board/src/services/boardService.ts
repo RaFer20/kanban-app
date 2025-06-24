@@ -1,6 +1,4 @@
-import { PrismaClient } from '../generated/prisma';
-
-const prisma = new PrismaClient();
+import prisma from '../prisma';
 
 /**
  * Creates a new board with the given name.

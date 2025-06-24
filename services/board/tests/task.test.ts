@@ -1,0 +1,79 @@
+import request from 'supertest';
+import app from '../src/index';
+import prisma from '../src/prisma';
+
+// Suppress console.error during tests
+beforeAll(() => {
+  jest.spyOn(console, 'error').mockImplementation(() => {});
+});
+
+afterAll(async () => {
+  (console.error as jest.Mock).mockRestore();
+  await prisma.$disconnect();
+});
+
+beforeEach(async () => {
+  await prisma.task.deleteMany({});
+  await prisma.column.deleteMany({});
+  await prisma.board.deleteMany({});
+});
+
+describe('Task API', () => {
+  let boardId: number;
+  let columnId: number;
+  let unique: string;
+
+  beforeEach(async () => {
+    unique = `${Date.now()}-${Math.random()}`;
+    const boardRes = await request(app)
+      .post('/api/boards')
+      .send({ name: `Board for Tasks ${unique}` });
+    boardId = boardRes.body.id;
+
+    const colRes = await request(app)
+      .post(`/api/boards/${boardId}/columns`)
+      .send({ name: `To Do ${unique}` });
+    columnId = colRes.body.id;
+  });
+
+  it('should create a task in a column', async () => {
+    const res = await request(app)
+      .post(`/api/columns/${columnId}/tasks`)
+      .send({ title: 'First Task', description: 'Test task' });
+    expect(res.statusCode).toBe(201);
+    expect(res.body).toHaveProperty('id');
+    expect(res.body.title).toBe('First Task');
+  });
+
+  it('should not create a task with duplicate title in the same column', async () => {
+    const firstRes = await request(app)
+      .post(`/api/columns/${columnId}/tasks`)
+      .send({ title: 'First Task' });
+    expect(firstRes.statusCode).toBe(201);
+
+    const res = await request(app)
+      .post(`/api/columns/${columnId}/tasks`)
+      .send({ title: 'First Task' });
+    expect(res.statusCode).toBe(409);
+  });
+
+  it('should not create a task with missing title', async () => {
+    const res = await request(app)
+      .post(`/api/columns/${columnId}/tasks`)
+      .send({});
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('should list tasks for a column', async () => {
+    const createRes = await request(app)
+      .post(`/api/columns/${columnId}/tasks`)
+      .send({ title: 'First Task' });
+    expect(createRes.statusCode).toBe(201);
+
+    const res = await request(app).get(`/api/columns/${columnId}/tasks`);
+    expect(res.statusCode).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.length).toBeGreaterThan(0);
+    expect(res.body[0].title).toBe('First Task');
+  });
+});

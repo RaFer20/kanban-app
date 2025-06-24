@@ -16,7 +16,7 @@ datasource db {
 
 model Board {
   id        Int      @id @default(autoincrement())
-  name      String
+  name      String   @unique
   columns   Column[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -25,7 +25,7 @@ model Board {
 model Column {
   id        Int      @id @default(autoincrement())
   name      String
-  board     Board    @relation(fields: [boardId], references: [id])
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
   boardId   Int
   tasks     Task[]
   order     Int
@@ -39,7 +39,7 @@ model Task {
   id          Int      @id @default(autoincrement())
   title       String
   description String?
-  column      Column   @relation(fields: [columnId], references: [id])
+  column      Column   @relation(fields: [columnId], references: [id], onDelete: Cascade)
   columnId    Int
   order       Int
   createdAt   DateTime @default(now())
