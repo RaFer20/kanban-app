@@ -41,4 +41,14 @@ describe('Board API', () => {
     expect(res.statusCode).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
   });
+
+  it('should return 404 for a non-existent board', async () => {
+    const res = await request(app).get('/api/boards/999999');
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('should return 404 when deleting a non-existent board', async () => {
+    const res = await request(app).delete('/api/boards/999999');
+    expect(res.statusCode).toBe(404);
+  });
 });

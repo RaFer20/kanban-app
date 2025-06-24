@@ -64,6 +64,13 @@ describe('Task API', () => {
     expect(res.statusCode).toBe(400);
   });
 
+  it('should return 400 when creating a task with an empty title', async () => {
+    const res = await request(app)
+      .post(`/api/columns/${columnId}/tasks`)
+      .send({ title: '' });
+    expect(res.statusCode).toBe(400);
+  });
+
   it('should list tasks for a column', async () => {
     const createRes = await request(app)
       .post(`/api/columns/${columnId}/tasks`)
@@ -75,5 +82,24 @@ describe('Task API', () => {
     expect(Array.isArray(res.body)).toBe(true);
     expect(res.body.length).toBeGreaterThan(0);
     expect(res.body[0].title).toBe('First Task');
+  });
+
+  it('should return 404 when creating a task in a non-existent column', async () => {
+    const res = await request(app)
+      .post('/api/columns/999999/tasks')
+      .send({ title: 'Ghost Task' });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('should return 404 when updating a non-existent task', async () => {
+    const res = await request(app)
+      .patch('/api/tasks/999999')
+      .send({ title: 'Updated Task' });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('should return 404 when deleting a non-existent task', async () => {
+    const res = await request(app).delete('/api/tasks/999999');
+    expect(res.statusCode).toBe(404);
   });
 });

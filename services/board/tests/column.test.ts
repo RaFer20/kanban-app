@@ -70,4 +70,30 @@ describe('Column API', () => {
     expect(res.body.length).toBeGreaterThan(0); // Defensive check
     expect(res.body[0].name).toBe(`To Do ${unique}`);
   });
+
+  it('should return 404 when creating a column for a non-existent board', async () => {
+    const res = await request(app)
+      .post('/api/boards/999999/columns')
+      .send({ name: 'Ghost Column' });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('should return 404 when updating a non-existent column', async () => {
+    const res = await request(app)
+      .patch('/api/columns/999999')
+      .send({ name: 'Updated Name' });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('should return 404 when deleting a non-existent column', async () => {
+    const res = await request(app).delete('/api/columns/999999');
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('should return 400 for invalid column ID format', async () => {
+    const res = await request(app)
+      .post('/api/columns/notanumber/tasks')
+      .send({ title: 'Task' });
+    expect(res.statusCode).toBe(400);
+  });
 });

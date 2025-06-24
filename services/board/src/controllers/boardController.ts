@@ -7,6 +7,7 @@ import {
 import { createBoardSchema } from "../schemas/boardSchema";
 import { createColumnSchema, updateColumnSchema } from "../schemas/columnSchema";
 import { createTaskSchema, updateTaskSchema } from "../schemas/taskSchema";
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 /**
  * Express handler for creating a new board.
@@ -84,11 +85,15 @@ export async function createColumnHandler(
     const column = await createColumn(parseResult.data.name, boardIdNum);
     res.status(201).json(column);
   } catch (error: any) {
-    console.error('Column creation error:', error);
-    if (error.code === 'P2002') {
+    if (error?.code === 'P2003') {
+      res.status(404).json({ error: 'Board not found' });
+      return;
+    }
+    if (error?.code === 'P2002') {
       res.status(409).json({ error: 'A column with this name already exists in this board.' });
       return;
     }
+    console.error(error);
     res.status(500).json({ error: 'Failed to create column' });
   }
 }
@@ -138,7 +143,11 @@ export async function createTaskHandler(
     const task = await createTask(parseResult.data.title, columnIdNum, parseResult.data.description);
     res.status(201).json(task);
   } catch (error: any) {
-    if (error.code === 'P2002') {
+    if (error?.code === 'P2003') {
+      res.status(404).json({ error: 'Column not found' });
+      return;
+    }
+    if (error?.code === 'P2002') {
       res.status(409).json({ error: 'A task with this title already exists in this column.' });
       return;
     }
@@ -187,12 +196,12 @@ export async function updateColumnHandler(req: Request, res: Response): Promise<
   }
   try {
     const column = await updateColumn(columnIdNum, parseResult.data);
-    if (!column) {
+    res.json(column);
+  } catch (error: any) {
+    if (error?.code === 'P2025') {
       res.status(404).json({ error: 'Column not found' });
       return;
     }
-    res.json(column);
-  } catch (error: any) {
     console.error(error);
     res.status(500).json({ error: 'Failed to update column' });
   }
@@ -211,12 +220,12 @@ export async function deleteColumnHandler(req: Request, res: Response): Promise<
   }
   try {
     const column = await deleteColumn(columnIdNum);
-    if (!column) {
+    res.json(column);
+  } catch (error: any) {
+    if (error?.code === 'P2025') {
       res.status(404).json({ error: 'Column not found' });
       return;
     }
-    res.json(column);
-  } catch (error: any) {
     console.error(error);
     res.status(500).json({ error: 'Failed to delete column' });
   }
@@ -240,12 +249,12 @@ export async function updateTaskHandler(req: Request, res: Response): Promise<vo
   }
   try {
     const task = await updateTask(taskIdNum, parseResult.data);
-    if (!task) {
+    res.json(task);
+  } catch (error: any) {
+    if (error?.code === 'P2025') {
       res.status(404).json({ error: 'Task not found' });
       return;
     }
-    res.json(task);
-  } catch (error: any) {
     console.error(error);
     res.status(500).json({ error: 'Failed to update task' });
   }
@@ -264,12 +273,12 @@ export async function deleteTaskHandler(req: Request, res: Response): Promise<vo
   }
   try {
     const task = await deleteTask(taskIdNum);
-    if (!task) {
+    res.json(task);
+  } catch (error: any) {
+    if (error?.code === 'P2025') {
       res.status(404).json({ error: 'Task not found' });
       return;
     }
-    res.json(task);
-  } catch (error: any) {
     console.error(error);
     res.status(500).json({ error: 'Failed to delete task' });
   }
