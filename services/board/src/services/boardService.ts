@@ -3,20 +3,23 @@ import prisma from '../prisma';
 /**
  * Creates a new board with the given name.
  * @param name - The name of the board to create.
+ * @param userId - The ID of the user who owns the board.
  * @returns The created board object.
  */
-export async function createBoard(name: string) {
+export async function createBoard(name: string, userId: number) {
   return prisma.board.create({
-    data: { name },
+    data: { name, userId },
   });
 }
 
 /**
- * Fetches all boards from the database.
+ * Fetches all boards for a specific user from the database.
+ * @param userId - The ID of the user.
  * @returns An array of board objects.
  */
-export async function getAllBoards() {
+export async function getAllBoards(userId: number) {
   return prisma.board.findMany({
+    where: { userId },
     orderBy: { id: 'asc' },
   });
 }

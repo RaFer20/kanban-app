@@ -1,12 +1,20 @@
 import express from "express";
 import boardRoutes from "./routes/boardRoutes";
 import { setupSwagger } from "./swagger";
+import { authenticateJWT } from "./middleware/authMiddleware";
 
 const app = express();
 app.use(express.json());
-app.use("/api", boardRoutes);
 
-setupSwagger(app);
+setupSwagger(app); // Register Swagger UI first
+
+// Only protect actual API routes, not /api/docs
+app.use("/api", (req, res, next) => {
+  if (req.path.startsWith("/docs")) {
+    return next(); // Allow access to Swagger UI without auth
+  }
+  authenticateJWT(req, res, next);
+}, boardRoutes);
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });

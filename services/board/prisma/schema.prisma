@@ -17,6 +17,7 @@ datasource db {
 model Board {
   id        Int      @id @default(autoincrement())
   name      String   @unique
+  userId    Int
   columns   Column[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

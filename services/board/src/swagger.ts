@@ -8,13 +8,22 @@ const options = {
     info: {
       title: 'Kanban Board Service API',
       version: '1.0.0',
-      description: 'API documentation for the Kanban Board microservice',
     },
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+        },
+      },
+    },
+    security: [{ bearerAuth: [] }], // Apply security globally
   },
-  apis: ['./src/routes/*.ts', './src/controllers/*.ts'], // Scan for JSDoc comments
+  apis: ['./src/routes/*.ts', './src/controllers/*.ts'], // adjust as needed
 };
 
-export const swaggerSpec = swaggerJsdoc(options);
+const swaggerSpec = swaggerJsdoc(options);
 
 export function setupSwagger(app: Express) {
   app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
