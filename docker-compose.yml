@@ -74,7 +74,7 @@ services:
       POSTGRES_PASSWORD: kanban_pass
       POSTGRES_DB: boarddb
     ports:
-      - "5433:5432" # Use a different host port if 5432 is taken
+      - "5433:5432"
     volumes:
       - board-db-data:/var/lib/postgresql/data
 
@@ -93,7 +93,6 @@ services:
     ports:
       - "3000:3000"
     command: npm run dev
-    # dev
 
   test-board-db:
     image: postgres:15
@@ -113,6 +112,7 @@ services:
       context: ./services/board
     depends_on:
       - test-board-db
+      - auth
     environment:
       DATABASE_URL: postgresql://kanban_user:kanban_pass@test-board-db:5432/test_boarddb
     volumes:

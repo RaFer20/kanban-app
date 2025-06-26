@@ -5,7 +5,6 @@ const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
   throw new Error("JWT_SECRET environment variable is required");
 }
-console.log("JWT_SECRET:", JWT_SECRET);
 
 export interface AuthenticatedRequest extends Request {
   user?: { id: number; email: string; role?: string };
@@ -16,7 +15,6 @@ export function authenticateJWT(
   res: Response,
   next: NextFunction
 ): void {
-  console.log("Authorization header:", req.headers.authorization);
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     res.status(401).json({ error: "Missing or invalid Authorization header" });
