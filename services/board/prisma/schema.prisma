@@ -17,8 +17,8 @@ datasource db {
 model Board {
   id        Int      @id @default(autoincrement())
   name      String   @unique
-  userId    Int
   columns   Column[]
+  memberships BoardMembership[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -47,4 +47,22 @@ model Task {
   updatedAt   DateTime @updatedAt
 
   @@unique([columnId, title]) // This line enforces unique task titles per column
+}
+
+model BoardMembership {
+  id        Int      @id @default(autoincrement())
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  boardId   Int
+  userId    Int
+  role      Role     @default(VIEWER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([boardId, userId])
+}
+
+enum Role {
+  OWNER
+  EDITOR
+  VIEWER
 }

@@ -8,13 +8,17 @@ app.use(express.json());
 
 setupSwagger(app); // Register Swagger UI first
 
-// Only protect actual API routes, not /api/docs
+// Protect all /api routes except /api/docs
 app.use("/api", (req, res, next) => {
   if (req.path.startsWith("/docs")) {
-    return next(); // Allow access to Swagger UI without auth
+    // Allow access to Swagger UI without auth
+    return next();
   }
-  authenticateJWT(req, res, next);
-}, boardRoutes);
+  return authenticateJWT(req, res, next);
+});
+
+// Mount all board routes under /api
+app.use("/api", boardRoutes);
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });

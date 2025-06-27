@@ -10,6 +10,10 @@ import {
   deleteColumnHandler,
   updateTaskHandler,
   deleteTaskHandler,
+  addBoardMemberHandler,
+  listBoardMembersHandler,
+  removeBoardMemberHandler,
+  updateBoardMemberRoleHandler,
 } from '../controllers/boardController';
 
 const router = Router();
@@ -24,5 +28,9 @@ router.patch('/columns/:columnId', updateColumnHandler);
 router.delete('/columns/:columnId', deleteColumnHandler);
 router.patch('/tasks/:taskId', updateTaskHandler);
 router.delete('/tasks/:taskId', deleteTaskHandler);
+router.post('/boards/:boardId/members', addBoardMemberHandler);
+router.get('/boards/:boardId/members', listBoardMembersHandler);
+router.delete('/boards/:boardId/members/:userId', removeBoardMemberHandler);
+router.patch('/boards/:boardId/members/:userId', updateBoardMemberRoleHandler);
 
 export default router;

@@ -1,14 +1,24 @@
 import prisma from '../prisma';
 
 /**
- * Creates a new board with the given name.
+ * Creates a new board and automatically assigns the owner.
  * @param name - The name of the board to create.
- * @param userId - The ID of the user who owns the board.
+ * @param userId - The ID of the user who will be the owner of the board.
  * @returns The created board object.
  */
-export async function createBoard(name: string, userId: number) {
-  return prisma.board.create({
-    data: { name, userId },
+export async function createBoardWithOwner(name: string, userId: number) {
+  return prisma.$transaction(async (tx) => {
+    const board = await tx.board.create({
+      data: { name },
+    });
+    await tx.boardMembership.create({
+      data: {
+        boardId: board.id,
+        userId,
+        role: 'OWNER',
+      },
+    });
+    return board;
   });
 }
 
@@ -19,8 +29,36 @@ export async function createBoard(name: string, userId: number) {
  */
 export async function getAllBoards(userId: number) {
   return prisma.board.findMany({
-    where: { userId },
+    where: {
+      memberships: {
+        some: { userId }
+      }
+    },
     orderBy: { id: 'asc' },
+  });
+}
+
+/**
+ * Gets the user's role for a specific board.
+ * @param boardId - The ID of the board.
+ * @param userId - The ID of the user.
+ * @returns The role as a string, or null if not a member.
+ */
+export async function getUserRoleForBoard(boardId: number, userId: number) {
+  const membership = await prisma.boardMembership.findUnique({
+    where: { boardId_userId: { boardId, userId } },
+  });
+  return membership?.role || null;
+}
+
+/**
+ * Deletes a board by its ID.
+ * @param boardId - The ID of the board to delete.
+ * @returns The deleted board object.
+ */
+export async function deleteBoard(boardId: number) {
+  return prisma.board.delete({
+    where: { id: boardId },
   });
 }
 
@@ -57,6 +95,33 @@ export async function getColumnsForBoard(boardId: number) {
   return prisma.column.findMany({
     where: { boardId },
     orderBy: { order: 'asc' },
+  });
+}
+
+/**
+ * Updates a column's name or order.
+ * @param columnId - The ID of the column to update.
+ * @param data - An object with optional 'name' and/or 'order' fields.
+ * @returns The updated column object.
+ */
+export async function updateColumn(
+  columnId: number,
+  data: { name?: string; order?: number }
+) {
+  return prisma.column.update({
+    where: { id: columnId },
+    data,
+  });
+}
+
+/**
+ * Deletes a column by its ID.
+ * @param columnId - The ID of the column to delete.
+ * @returns The deleted column object.
+ */
+export async function deleteColumn(columnId: number) {
+  return prisma.column.delete({
+    where: { id: columnId },
   });
 }
 
@@ -98,33 +163,6 @@ export async function getTasksForColumn(columnId: number) {
 }
 
 /**
- * Updates a column's name or order.
- * @param columnId - The ID of the column to update.
- * @param data - An object with optional 'name' and/or 'order' fields.
- * @returns The updated column object.
- */
-export async function updateColumn(
-  columnId: number,
-  data: { name?: string; order?: number }
-) {
-  return prisma.column.update({
-    where: { id: columnId },
-    data,
-  });
-}
-
-/**
- * Deletes a column by its ID.
- * @param columnId - The ID of the column to delete.
- * @returns The deleted column object.
- */
-export async function deleteColumn(columnId: number) {
-  return prisma.column.delete({
-    where: { id: columnId },
-  });
-}
-
-/**
  * Updates a task's title, description, column, or order.
  * @param taskId - The ID of the task to update.
  * @param data - An object with optional 'title', 'description', 'columnId', and/or 'order' fields.
@@ -148,6 +186,19 @@ export async function updateTask(
 export async function deleteTask(taskId: number) {
   return prisma.task.delete({
     where: { id: taskId },
+  });
+}
+
+/**
+ * Adds a new member to a board with a specific role.
+ * @param boardId - The ID of the board.
+ * @param userId - The ID of the user to add.
+ * @param role - The role to assign to the user on the board.
+ * @returns The created board membership object.
+ */
+export async function addBoardMember(boardId: number, userId: number, role: 'OWNER' | 'EDITOR' | 'VIEWER') {
+  return prisma.boardMembership.create({
+    data: { boardId, userId, role },
   });
 }
 

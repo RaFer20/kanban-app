@@ -1,14 +1,19 @@
 import { Request, Response } from 'express';
 import { 
-  createBoard, getAllBoards, createColumn, getColumnsForBoard,
+  createBoardWithOwner, getAllBoards, createColumn, getColumnsForBoard,
   createTask, getTasksForColumn, updateColumn, deleteColumn,
-  updateTask, deleteTask,
+  updateTask, deleteTask, getUserRoleForBoard, deleteBoard,
+  addBoardMember
 } from '../services/boardService';
 import { createBoardSchema } from "../schemas/boardSchema";
 import { createColumnSchema, updateColumnSchema } from "../schemas/columnSchema";
 import { createTaskSchema, updateTaskSchema } from "../schemas/taskSchema";
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { AuthenticatedRequest } from "../types/express";
+import { requireRole } from "../utils/requireRole";
+import prisma from '../prisma';
+
+// --- Board Handlers ---
 
 /**
  * @openapi
@@ -45,12 +50,12 @@ export async function createBoardHandler(
   }
   const { name } = parseResult.data;
   const userId = req.user?.id;
-  if (!userId) {
+  if (typeof userId !== 'number') {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
   try {
-    const board = await createBoard(name, userId);
+    const board = await createBoardWithOwner(name, userId);
     res.status(201).json(board);
   } catch (error: any) {
     if (error.code === 'P2002') {
@@ -76,7 +81,7 @@ export async function getAllBoardsHandler(
   res: Response
 ): Promise<void> {
   const userId = req.user?.id;
-  if (!userId) {
+  if (typeof userId !== 'number') {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
@@ -87,6 +92,56 @@ export async function getAllBoardsHandler(
     res.status(500).json({ error: 'Failed to fetch boards' });
   }
 }
+
+/**
+ * @openapi
+ * /api/boards/{boardId}:
+ *   delete:
+ *     summary: Delete a board
+ *     parameters:
+ *       - in: path
+ *         name: boardId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Board deleted
+ *       400:
+ *         description: Validation error
+ *       404:
+ *         description: Board not found
+ */
+export async function deleteBoardHandler(
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> {
+  const boardId = Number(req.params.boardId);
+  const userId = req.user?.id;
+  if (typeof userId !== 'number') {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const board = await prisma.board.findUnique({ where: { id: boardId } });
+  if (!board) {
+    res.status(404).json({ error: "Board not found" });
+    return;
+  }
+  const role = await getUserRoleForBoard(boardId, userId);
+  if (!role) {
+    res.status(404).json({ error: "Board not found" });
+    return;
+  }
+  if (!requireRole(['OWNER'], role, res)) return;
+  try {
+    await deleteBoard(boardId);
+    res.json({ message: 'Board deleted successfully' });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to delete board' });
+  }
+}
+
+// --- Column Handlers ---
 
 /**
  * @openapi
@@ -127,22 +182,34 @@ export async function createColumnHandler(
   const parseResult = createColumnSchema.safeParse(req.body);
   const { boardId } = req.params;
   const boardIdNum = Number(boardId);
+  const userId = (req as AuthenticatedRequest).user?.id;
   if (!parseResult.success) {
     res.status(400).json({ error: parseResult.error.errors[0].message });
+    return;
+  }
+  if (typeof userId !== 'number') {
+    res.status(401).json({ error: "Unauthorized" });
     return;
   }
   if (isNaN(boardIdNum)) {
     res.status(400).json({ error: 'Board ID must be a number' });
     return;
   }
+  const board = await prisma.board.findUnique({ where: { id: boardIdNum } });
+  if (!board) {
+    res.status(404).json({ error: 'Board not found' });
+    return;
+  }
+  const role = await getUserRoleForBoard(boardIdNum, userId);
+  if (!role) {
+    res.status(404).json({ error: 'Board not found' });
+    return;
+  }
+  if (!requireRole(['OWNER', 'EDITOR'], role, res)) return;
   try {
     const column = await createColumn(parseResult.data.name, boardIdNum);
     res.status(201).json(column);
   } catch (error: any) {
-    if (error?.code === 'P2003') {
-      res.status(404).json({ error: 'Board not found' });
-      return;
-    }
     if (error?.code === 'P2002') {
       res.status(409).json({ error: 'A column with this name already exists in this board.' });
       return;
@@ -173,16 +240,32 @@ export async function getColumnsForBoardHandler(
 ): Promise<void> {
   const { boardId } = req.params;
   const boardIdNum = Number(boardId);
+  const userId = (req as AuthenticatedRequest).user?.id;
+  if (typeof userId !== 'number') {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   if (isNaN(boardIdNum)) {
     res.status(400).json({ error: 'Board ID must be a number' });
     return;
   }
+  const board = await prisma.board.findUnique({ where: { id: boardIdNum } });
+  if (!board) {
+    res.status(404).json({ error: 'Board not found' });
+    return;
+  }
+  const role = await getUserRoleForBoard(boardIdNum, userId);
+  if (!role) {
+    res.status(404).json({ error: 'Board not found' });
+    return;
+  }
+  if (!requireRole(['OWNER', 'EDITOR', 'VIEWER'], role, res)) return;
   try {
     const columns = await getColumnsForBoard(boardIdNum);
     res.json(columns);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch columns' });
-  }
+  } 
 }
 
 /**
@@ -219,17 +302,33 @@ export async function updateColumnHandler(req: Request, res: Response): Promise<
   const parseResult = updateColumnSchema.safeParse(req.body);
   const { columnId } = req.params;
   const columnIdNum = Number(columnId);
+  const userId = (req as AuthenticatedRequest).user?.id;
   if (!parseResult.success) {
     res.status(400).json({ error: parseResult.error.errors[0].message });
+    return;
+  }
+  if (typeof userId !== 'number') {
+    res.status(401).json({ error: "Unauthorized" });
     return;
   }
   if (isNaN(columnIdNum)) {
     res.status(400).json({ error: 'Column ID must be a number' });
     return;
   }
+  const column = await prisma.column.findUnique({ where: { id: columnIdNum } });
+  if (!column) {
+    res.status(404).json({ error: 'Column not found' });
+    return;
+  }
+  const role = await getUserRoleForBoard(column.boardId, userId);
+  if (!role) {
+    res.status(404).json({ error: 'Column not found' });
+    return;
+  }
+  if (!requireRole(['OWNER', 'EDITOR'], role, res)) return;
   try {
-    const column = await updateColumn(columnIdNum, parseResult.data);
-    res.json(column);
+    const updatedColumn = await updateColumn(columnIdNum, parseResult.data);
+    res.json(updatedColumn);
   } catch (error: any) {
     if (error?.code === 'P2025') {
       res.status(404).json({ error: 'Column not found' });
@@ -262,10 +361,26 @@ export async function updateColumnHandler(req: Request, res: Response): Promise<
 export async function deleteColumnHandler(req: Request, res: Response): Promise<void> {
   const { columnId } = req.params;
   const columnIdNum = Number(columnId);
+  const userId = (req as AuthenticatedRequest).user?.id;
+  if (typeof userId !== 'number') {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   if (isNaN(columnIdNum)) {
     res.status(400).json({ error: 'Column ID must be a number' });
     return;
   }
+  const column = await prisma.column.findUnique({ where: { id: columnIdNum } });
+  if (!column) {
+    res.status(404).json({ error: 'Column not found' });
+    return;
+  }
+  const role = await getUserRoleForBoard(column.boardId, userId);
+  if (!role) {
+    res.status(404).json({ error: 'Column not found' });
+    return;
+  }
+  if (!requireRole(['OWNER', 'EDITOR'], role, res)) return;
   try {
     await deleteColumn(columnIdNum);
     res.json({ message: 'Column deleted successfully' });
@@ -278,6 +393,8 @@ export async function deleteColumnHandler(req: Request, res: Response): Promise<
     res.status(500).json({ error: 'Failed to delete column' });
   }
 }
+
+// --- Task Handlers ---
 
 /**
  * @openapi
@@ -320,22 +437,34 @@ export async function createTaskHandler(
   const parseResult = createTaskSchema.safeParse(req.body);
   const { columnId } = req.params;
   const columnIdNum = Number(columnId);
+  const userId = (req as AuthenticatedRequest).user?.id;
   if (!parseResult.success) {
     res.status(400).json({ error: parseResult.error.errors[0].message });
+    return;
+  }
+  if (typeof userId !== 'number') {
+    res.status(401).json({ error: "Unauthorized" });
     return;
   }
   if (isNaN(columnIdNum)) {
     res.status(400).json({ error: 'Column ID must be a number' });
     return;
   }
+  const column = await prisma.column.findUnique({ where: { id: columnIdNum } });
+  if (!column) {
+    res.status(404).json({ error: 'Column not found' });
+    return;
+  }
+  const role = await getUserRoleForBoard(column.boardId, userId);
+  if (!role) {
+    res.status(404).json({ error: 'Column not found' });
+    return;
+  }
+  if (!requireRole(['OWNER', 'EDITOR'], role, res)) return;
   try {
     const task = await createTask(parseResult.data.title, columnIdNum, parseResult.data.description);
     res.status(201).json(task);
   } catch (error: any) {
-    if (error?.code === 'P2003') {
-      res.status(404).json({ error: 'Column not found' });
-      return;
-    }
     if (error?.code === 'P2002') {
       res.status(409).json({ error: 'A task with this title already exists in this column.' });
       return;
@@ -366,10 +495,26 @@ export async function getTasksForColumnHandler(
 ): Promise<void> {
   const { columnId } = req.params;
   const columnIdNum = Number(columnId);
+  const userId = (req as AuthenticatedRequest).user?.id;
+  if (typeof userId !== 'number') {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   if (isNaN(columnIdNum)) {
     res.status(400).json({ error: 'Column ID must be a number' });
     return;
   }
+  const column = await prisma.column.findUnique({ where: { id: columnIdNum } });
+  if (!column) {
+    res.status(404).json({ error: 'Column not found' });
+    return;
+  }
+  const role = await getUserRoleForBoard(column.boardId, userId);
+  if (!role) {
+    res.status(404).json({ error: 'Column not found' });
+    return;
+  }
+  if (!requireRole(['OWNER', 'EDITOR', 'VIEWER'], role, res)) return;
   try {
     const tasks = await getTasksForColumn(columnIdNum);
     res.json(tasks);
@@ -416,17 +561,38 @@ export async function updateTaskHandler(req: Request, res: Response): Promise<vo
   const parseResult = updateTaskSchema.safeParse(req.body);
   const { taskId } = req.params;
   const taskIdNum = Number(taskId);
+  const userId = (req as AuthenticatedRequest).user?.id;
   if (!parseResult.success) {
     res.status(400).json({ error: parseResult.error.errors[0].message });
+    return;
+  }
+  if (typeof userId !== 'number') {
+    res.status(401).json({ error: "Unauthorized" });
     return;
   }
   if (isNaN(taskIdNum)) {
     res.status(400).json({ error: 'Task ID must be a number' });
     return;
   }
+  const task = await prisma.task.findUnique({ where: { id: taskIdNum } });
+  if (!task) {
+    res.status(404).json({ error: 'Task not found' });
+    return;
+  }
+  const column = await prisma.column.findUnique({ where: { id: task.columnId } });
+  if (!column) {
+    res.status(404).json({ error: 'Column not found' });
+    return;
+  }
+  const role = await getUserRoleForBoard(column.boardId, userId);
+  if (!role) {
+    res.status(404).json({ error: 'Task not found' });
+    return;
+  }
+  if (!requireRole(['OWNER', 'EDITOR'], role, res)) return;
   try {
-    const task = await updateTask(taskIdNum, parseResult.data);
-    res.json(task);
+    const updatedTask = await updateTask(taskIdNum, parseResult.data);
+    res.json(updatedTask);
   } catch (error: any) {
     if (error?.code === 'P2025') {
       res.status(404).json({ error: 'Task not found' });
@@ -459,10 +625,31 @@ export async function updateTaskHandler(req: Request, res: Response): Promise<vo
 export async function deleteTaskHandler(req: Request, res: Response): Promise<void> {
   const { taskId } = req.params;
   const taskIdNum = Number(taskId);
+  const userId = (req as AuthenticatedRequest).user?.id;
+  if (typeof userId !== 'number') {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   if (isNaN(taskIdNum)) {
     res.status(400).json({ error: 'Task ID must be a number' });
     return;
   }
+  const task = await prisma.task.findUnique({ where: { id: taskIdNum } });
+  if (!task) {
+    res.status(404).json({ error: 'Task not found' });
+    return;
+  }
+  const column = await prisma.column.findUnique({ where: { id: task.columnId } });
+  if (!column) {
+    res.status(404).json({ error: 'Column not found' });
+    return;
+  }
+  const role = await getUserRoleForBoard(column.boardId, userId);
+  if (!role) {
+    res.status(404).json({ error: 'Task not found' });
+    return;
+  }
+  if (!requireRole(['OWNER', 'EDITOR'], role, res)) return;
   try {
     await deleteTask(taskIdNum);
     res.json({ message: 'Task deleted successfully' });
@@ -476,3 +663,235 @@ export async function deleteTaskHandler(req: Request, res: Response): Promise<vo
   }
 }
 
+// --- Membership Handlers ---
+
+/**
+ * @openapi
+ * /api/boards/{boardId}/members:
+ *   post:
+ *     summary: Add a member to the board
+ *     parameters:
+ *       - in: path
+ *         name: boardId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *               - role
+ *             properties:
+ *               userId:
+ *                 type: integer
+ *               role:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Member added
+ *       400:
+ *         description: Validation error
+ *       404:
+ *         description: Board not found
+ *       403:
+ *         description: Forbidden
+ */
+export async function addBoardMemberHandler(
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> {
+  const boardId = Number(req.params.boardId);
+  const { userId, role } = req.body;
+  const requesterId = req.user?.id;
+  if (typeof requesterId !== 'number') {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const board = await prisma.board.findUnique({ where: { id: boardId } });
+  if (!board) {
+    res.status(404).json({ error: "Board not found" });
+    return;
+  }
+  const requesterRole = await getUserRoleForBoard(boardId, requesterId);
+  if (!requesterRole) {
+    res.status(404).json({ error: "Board not found" });
+    return;
+  }
+  if (!requireRole(['OWNER'], requesterRole, res)) return;
+  try {
+    const membership = await addBoardMember(boardId, userId, role);
+    res.status(201).json(membership);
+  } catch (err) {
+    res.status(400).json({ error: "Could not add member (maybe already exists?)" });
+  }
+}
+
+/**
+ * @openapi
+ * /api/boards/{boardId}/members:
+ *   get:
+ *     summary: List members of the board
+ *     parameters:
+ *       - in: path
+ *         name: boardId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: List of board members
+ */
+export async function listBoardMembersHandler(
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> {
+  const boardId = Number(req.params.boardId);
+  const userId = req.user?.id;
+  if (typeof userId !== 'number') {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const board = await prisma.board.findUnique({ where: { id: boardId } });
+  if (!board) {
+    res.status(404).json({ error: "Board not found" });
+    return;
+  }
+  const role = await getUserRoleForBoard(boardId, userId);
+  if (!role) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+  if (!requireRole(['OWNER', 'EDITOR', 'VIEWER'], role, res)) return;
+  try {
+    const members = await prisma.boardMembership.findMany({
+      where: { boardId },
+      select: { userId: true, role: true, createdAt: true, updatedAt: true }
+    });
+    res.json(members);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch board members" });
+  }
+}
+
+/**
+ * @openapi
+ * /api/boards/{boardId}/members/{userId}:
+ *   delete:
+ *     summary: Remove a member from the board
+ *     parameters:
+ *       - in: path
+ *         name: boardId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Member removed
+ *       404:
+ *         description: Member not found
+ */
+export async function removeBoardMemberHandler(
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> {
+  const boardId = Number(req.params.boardId);
+  const memberId = Number(req.params.userId);
+  const requesterId = req.user?.id;
+  if (typeof requesterId !== 'number') {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const board = await prisma.board.findUnique({ where: { id: boardId } });
+  if (!board) {
+    res.status(404).json({ error: "Board not found" });
+    return;
+  }
+  const requesterRole = await getUserRoleForBoard(boardId, requesterId);
+  if (!requesterRole) {
+    res.status(404).json({ error: "Board not found" });
+    return;
+  }
+  if (!requireRole(['OWNER'], requesterRole, res)) return;
+  try {
+    await prisma.boardMembership.delete({
+      where: { boardId_userId: { boardId, userId: memberId } }
+    });
+    res.json({ message: "Member removed successfully" });
+  } catch (error) {
+    res.status(404).json({ error: "Member not found" });
+  }
+}
+
+/**
+ * @openapi
+ * /api/boards/{boardId}/members/{userId}:
+ *   patch:
+ *     summary: Update a member's role in the board
+ *     parameters:
+ *       - in: path
+ *         name: boardId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               role:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Member role updated
+ *       404:
+ *         description: Member not found
+ */
+export async function updateBoardMemberRoleHandler(
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> {
+  const boardId = Number(req.params.boardId);
+  const memberId = Number(req.params.userId);
+  const { role } = req.body;
+  const requesterId = req.user?.id;
+  if (typeof requesterId !== 'number') {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const board = await prisma.board.findUnique({ where: { id: boardId } });
+  if (!board) {
+    res.status(404).json({ error: "Board not found" });
+    return;
+  }
+  const requesterRole = await getUserRoleForBoard(boardId, requesterId);
+  if (!requesterRole) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+  if (!requireRole(['OWNER'], requesterRole, res)) return;
+  try {
+    const updated = await prisma.boardMembership.update({
+      where: { boardId_userId: { boardId, userId: memberId } },
+      data: { role }
+    });
+    res.json(updated);
+  } catch (error) {
+    res.status(404).json({ error: "Member not found" });
+  }
+}

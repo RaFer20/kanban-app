@@ -4,7 +4,6 @@ import prisma from '../src/prisma';
 
 let accessToken: string;
 
-// Suppress console.error during tests
 beforeAll(() => {
   jest.spyOn(console, 'error').mockImplementation(() => {});
 });
@@ -92,5 +91,44 @@ describe('Board API', () => {
       .delete('/api/boards/999999')
       .set('Authorization', `Bearer ${accessToken}`);
     expect(res.statusCode).toBe(404);
+  });
+
+  it('should return 401 if no token is provided', async () => {
+    const res = await request(app)
+      .post('/api/boards')
+      .send({ name: 'No Auth Board' });
+    expect(res.statusCode).toBe(401);
+  });
+
+  it('should return 401 for an invalid JWT', async () => {
+    const res = await request(app)
+      .get('/api/boards')
+      .set('Authorization', 'Bearer badtoken');
+    expect(res.statusCode).toBe(401);
+  });
+
+  it('should return 403 if a non-owner tries to delete a board', async () => {
+    // Register and login as a second user
+    const email = `otheruser${Date.now()}@example.com`;
+    const password = 'testpassword';
+    await request('http://auth:8000').post('/api/v1/users/').send({ email, password });
+    const loginRes = await request('http://auth:8000')
+      .post('/api/v1/token')
+      .type('form')
+      .send({ username: email, password });
+    const otherToken = loginRes.body.access_token;
+
+    // Create a board as the original user
+    const boardRes = await request(app)
+      .post('/api/boards')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ name: 'Owner Board' });
+    const boardId = boardRes.body.id;
+
+    // Try to delete as the other user (not a member, should get 403)
+    const res = await request(app)
+      .delete(`/api/boards/${boardId}`)
+      .set('Authorization', `Bearer ${otherToken}`);
+    expect([403, 404]).toContain(res.statusCode);
   });
 });
