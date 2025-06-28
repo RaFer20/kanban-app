@@ -204,3 +204,28 @@ Content-Type: application/json
 ## Tech Stack
 
 - Node.js, Express, Prisma, PostgreSQL, TypeScript, Docker
+
+## Observability
+
+- Prometheus metrics are exposed at `/metrics`.
+- Example metrics: `boards_created_total`, `tasks_created_total`, `http_request_duration_seconds`.
+- Integrates with Prometheus/Grafana for monitoring.
+
+## Logging
+
+- Uses [Pino](https://getpino.io/) for structured, JSON logging.
+- Logs key actions and errors with context (userId, boardId, etc).
+- In development, logs are pretty-printed; in production, logs are JSON for aggregation.
+
+## Tracing
+
+- Distributed tracing is enabled using [OpenTelemetry](https://opentelemetry.io/).
+- All incoming HTTP requests and database operations are automatically traced.
+- Traces are exported to the configured OTEL Collector (`OTEL_EXPORTER_OTLP_ENDPOINT` in `.env`).
+- Each service sets its own `service.name` (e.g., `board-service`, `auth-service`), allowing filtering in Grafana Tempo.
+- Example TraceQL queries:
+  - `{ .service.name = "board-service" }`
+  - `{ .service.name = "auth-service" }`
+- Logs include `trace_id` and `span_id` for easy correlation with traces.
+- View traces in Grafana Tempo at [http://localhost:3000/explore?left=...](http://localhost:3001/explore).
+- For more, see [OpenTelemetry docs](https://opentelemetry.io/docs/) and [Grafana Tempo docs](https://grafana.com/docs/tempo/latest/).

@@ -58,7 +58,7 @@ beforeAll(async () => {
   viewerId = await getUserId(viewerToken);
   removedMemberId = await getUserId(removedMemberToken);
   neverMemberId = await getUserId(neverMemberToken);
-  addedMemberId = await getUserId(addedMemberToken); // <-- new ID
+  addedMemberId = await getUserId(addedMemberToken);
 
   // Owner creates a board and column
   const boardRes = await request(app)
@@ -100,21 +100,6 @@ beforeAll(async () => {
   await request(app)
     .delete(`/api/boards/${boardId}/members/${removedMemberId}`)
     .set('Authorization', `Bearer ${ownerToken}`);
-
-  // Debug: check membership
-  let membership;
-  for (let i = 0; i < 10; i++) {
-    membership = await prisma.boardMembership.findUnique({
-      where: { boardId_userId: { boardId, userId: removedMemberId } }
-    });
-    if (!membership) break;
-    await new Promise(res => setTimeout(res, 100));
-  }
-
-  const role = await prisma.boardMembership.findUnique({
-    where: { boardId_userId: { boardId, userId: removedMemberId } }
-  });
-  console.log('Membership in DB before test:', role);
 });
 
 afterAll(async () => {
@@ -126,22 +111,13 @@ afterAll(async () => {
 
 describe('RBAC', () => {
   describe('Board Members', () => {
-    // Board deletion
-    it('OWNER can delete the board', async () => {
-      const res = await request(app)
-        .delete(`/api/boards/${boardId}`)
-        .set('Authorization', `Bearer ${ownerToken}`);
-      expect([200, 404]).toContain(res.statusCode); // 404 if already deleted
-    });
-
     it('EDITOR cannot delete the board', async () => {
       const res = await request(app)
         .delete(`/api/boards/${boardId}`)
         .set('Authorization', `Bearer ${editorToken}`);
-      expect([403, 404]).toContain(res.statusCode); // Accept 404 if already deleted
+      expect([403, 404]).toContain(res.statusCode);
     });
 
-    // Column creation
     it('VIEWER cannot create columns', async () => {
       const res = await request(app)
         .post(`/api/boards/${boardId}/columns`)
@@ -155,10 +131,9 @@ describe('RBAC', () => {
         .post(`/api/boards/${boardId}/columns`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({ name: 'Editor Column' });
-      expect([201, 409]).toContain(res.statusCode); // 409 if already exists
+      expect([201, 409]).toContain(res.statusCode);
     });
 
-    // Column listing
     it('VIEWER can list columns', async () => {
       const res = await request(app)
         .get(`/api/boards/${boardId}/columns`)
@@ -173,7 +148,6 @@ describe('RBAC', () => {
       expect(res.statusCode).toBe(404);
     });
 
-    // Membership management
     it('OWNER can add a member', async () => {
       const res = await request(app)
         .post(`/api/boards/${boardId}/members`)
@@ -190,7 +164,6 @@ describe('RBAC', () => {
       expect(res.statusCode).toBe(403);
     });
 
-    // PATCH column
     it('OWNER can update a column', async () => {
       const res = await request(app)
         .patch(`/api/columns/${columnId}`)
@@ -217,7 +190,6 @@ describe('RBAC', () => {
       expect(res.statusCode).toBe(403);
     });
 
-    // DELETE column
     it('OWNER can delete a column', async () => {
       const createRes = await request(app)
         .post(`/api/boards/${boardId}/columns`)
@@ -257,7 +229,6 @@ describe('RBAC', () => {
       expect(res.statusCode).toBe(403);
     });
 
-    // PATCH task
     it('OWNER can update a task', async () => {
       const res = await request(app)
         .patch(`/api/tasks/${taskId}`)
@@ -284,7 +255,6 @@ describe('RBAC', () => {
       expect(res.statusCode).toBe(403);
     });
 
-    // DELETE task
     it('OWNER can delete a task', async () => {
       const createRes = await request(app)
         .post(`/api/columns/${columnId}/tasks`)
@@ -324,7 +294,6 @@ describe('RBAC', () => {
       expect(res.statusCode).toBe(403);
     });
 
-    // Remove a member and ensure they lose access
     it('OWNER can remove a member and they lose access', async () => {
       // Remove the viewer
       const res = await request(app)
@@ -383,6 +352,25 @@ describe('RBAC', () => {
         .get(`/api/columns/${columnId}/tasks`)
         .set('Authorization', `Bearer ${neverMemberToken}`);
       expect(res.statusCode).toBe(404);
+    });
+  });
+
+  describe('Board Deletion', () => {
+    let tempBoardId: number;
+    beforeAll(async () => {
+      // create a new board just for this test
+      const res = await request(app)
+        .post('/api/boards')
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ name: `Delete Test Board ${Date.now()}` });
+      tempBoardId = res.body.id;
+    });
+
+    it('OWNER can delete the board', async () => {
+      const res = await request(app)
+        .delete(`/api/boards/${tempBoardId}`)
+        .set('Authorization', `Bearer ${ownerToken}`);
+      expect([200, 404]).toContain(res.statusCode);
     });
   });
 });

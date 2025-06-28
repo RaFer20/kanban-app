@@ -6,3 +6,7 @@ scrape_configs:
     metrics_path: /metrics
     static_configs:
       - targets: ['auth:8000']
+  - job_name: 'board-service'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['board:3000']

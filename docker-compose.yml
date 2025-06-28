@@ -120,6 +120,16 @@ services:
     working_dir: /app
     command: npm test -- --runInBand
 
+  tempo:
+    image: grafana/tempo:latest
+    ports:
+      - "3200:3200"
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./docker/tempo/tempo.yaml:/etc/tempo.yaml
+    expose:
+      - "4317"
+
 volumes:
   auth-db-data:
   grafana-storage:
