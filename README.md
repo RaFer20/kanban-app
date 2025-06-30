@@ -7,3 +7,8 @@ Full-stack monorepo Kanban board with:
 - React frontend
 - PostgreSQL
 - Docker & Docker Compose
+
+## Dashboards
+
+- **Board Service Dashboard:** Metrics for boards, columns, tasks.
+- **Auth Service Dashboard:** Metrics

@@ -1,26 +1,70 @@
 import prisma from '../prisma';
 
 /**
- * Creates a new board with the given name.
+ * Creates a new board and automatically assigns the owner.
  * @param name - The name of the board to create.
- * @param userId - The ID of the user who owns the board.
+ * @param userId - The ID of the user who will be the owner of the board.
  * @returns The created board object.
  */
-export async function createBoard(name: string, userId: number) {
-  return prisma.board.create({
-    data: { name, userId },
+export async function createBoardWithOwner(name: string, userId: number) {
+  return prisma.$transaction(async (tx) => {
+    const board = await tx.board.create({
+      data: { name },
+    });
+    await tx.boardMembership.create({
+      data: {
+        boardId: board.id,
+        userId,
+        role: 'OWNER',
+      },
+    });
+    return board;
   });
 }
 
 /**
- * Fetches all boards for a specific user from the database.
+ * Fetches a paginated list of boards for a specific user.
  * @param userId - The ID of the user.
- * @returns An array of board objects.
+ * @param limit - Max number of boards to return.
+ * @param offset - How many boards to skip (for pagination).
+ * @returns An object with items (boards) and total count.
  */
-export async function getAllBoards(userId: number) {
-  return prisma.board.findMany({
-    where: { userId },
-    orderBy: { id: 'asc' },
+export async function getBoardsPaginated(userId: number, limit = 10, offset = 0) {
+  const [items, total] = await Promise.all([
+    prisma.board.findMany({
+      where: { memberships: { some: { userId } } },
+      orderBy: { id: 'asc' },
+      skip: offset,
+      take: limit,
+    }),
+    prisma.board.count({
+      where: { memberships: { some: { userId } } },
+    }),
+  ]);
+  return { items, total, limit, offset };
+}
+
+/**
+ * Gets the user's role for a specific board.
+ * @param boardId - The ID of the board.
+ * @param userId - The ID of the user.
+ * @returns The role as a string, or null if not a member.
+ */
+export async function getUserRoleForBoard(boardId: number, userId: number) {
+  const membership = await prisma.boardMembership.findUnique({
+    where: { boardId_userId: { boardId, userId } },
+  });
+  return membership?.role || null;
+}
+
+/**
+ * Deletes a board by its ID.
+ * @param boardId - The ID of the board to delete.
+ * @returns The deleted board object.
+ */
+export async function deleteBoard(boardId: number) {
+  return prisma.board.delete({
+    where: { id: boardId },
   });
 }
 
@@ -61,43 +105,6 @@ export async function getColumnsForBoard(boardId: number) {
 }
 
 /**
- * Creates a new task in a specific column.
- * Finds the current maximum order for tasks in the column and adds the new task at the end.
- * @param title - The title of the task to create.
- * @param columnId - The ID of the column to add the task to.
- * @param description - (Optional) The description of the task.
- * @returns The created task object.
- */
-export async function createTask(title: string, columnId: number, description?: string) {
-  // Find the current max order for tasks in this column
-  const maxOrder = await prisma.task.aggregate({
-    where: { columnId },
-    _max: { order: true },
-  });
-  const nextOrder = (maxOrder._max.order ?? 0) + 1;
-  return prisma.task.create({
-    data: {
-      title,
-      description,
-      columnId,
-      order: nextOrder,
-    },
-  });
-}
-
-/**
- * Fetches all tasks for a specific column, ordered by their position.
- * @param columnId - The ID of the column to fetch tasks for.
- * @returns An array of task objects.
- */
-export async function getTasksForColumn(columnId: number) {
-  return prisma.task.findMany({
-    where: { columnId },
-    orderBy: { order: 'asc' },
-  });
-}
-
-/**
  * Updates a column's name or order.
  * @param columnId - The ID of the column to update.
  * @param data - An object with optional 'name' and/or 'order' fields.
@@ -125,6 +132,48 @@ export async function deleteColumn(columnId: number) {
 }
 
 /**
+ * Creates a new task in a specific column.
+ * Finds the current maximum order for tasks in the column and adds the new task at the end.
+ * @param title - The title of the task to create.
+ * @param columnId - The ID of the column to add the task to.
+ * @param description - (Optional) The description of the task.
+ * @returns The created task object.
+ */
+export async function createTask(
+  title: string,
+  columnId: number,
+  description?: string,
+  assigneeId?: number
+) {
+  const maxOrder = await prisma.task.aggregate({
+    where: { columnId },
+    _max: { order: true },
+  });
+  const nextOrder = (maxOrder._max.order ?? 0) + 1;
+  return prisma.task.create({
+    data: {
+      title,
+      description,
+      columnId,
+      order: nextOrder,
+      assigneeId, // <-- Add this line
+    },
+  });
+}
+
+/**
+ * Fetches all tasks for a specific column, ordered by their position.
+ * @param columnId - The ID of the column to fetch tasks for.
+ * @returns An array of task objects.
+ */
+export async function getTasksForColumn(columnId: number) {
+  return prisma.task.findMany({
+    where: { columnId },
+    orderBy: { order: 'asc' },
+  });
+}
+
+/**
  * Updates a task's title, description, column, or order.
  * @param taskId - The ID of the task to update.
  * @param data - An object with optional 'title', 'description', 'columnId', and/or 'order' fields.
@@ -132,7 +181,7 @@ export async function deleteColumn(columnId: number) {
  */
 export async function updateTask(
   taskId: number,
-  data: { title?: string; description?: string; columnId?: number; order?: number }
+  data: { title?: string; description?: string; columnId?: number; order?: number; assigneeId?: number }
 ) {
   return prisma.task.update({
     where: { id: taskId },
@@ -149,5 +198,48 @@ export async function deleteTask(taskId: number) {
   return prisma.task.delete({
     where: { id: taskId },
   });
+}
+
+/**
+ * Adds a new member to a board with a specific role.
+ * @param boardId - The ID of the board.
+ * @param userId - The ID of the user to add.
+ * @param role - The role to assign to the user on the board.
+ * @returns The created board membership object.
+ */
+export async function addBoardMember(boardId: number, userId: number, role: 'OWNER' | 'EDITOR' | 'VIEWER') {
+  return prisma.boardMembership.create({
+    data: { boardId, userId, role },
+  });
+}
+
+/**
+ * Fetches paginated and filtered tasks for a column.
+ * @param columnId - The ID of the column.
+ * @param filters - Optional filters (status, assigneeId, etc.).
+ * @param limit - Max number of tasks to return.
+ * @param offset - How many tasks to skip.
+ * @returns An object with items (tasks) and total count.
+ */
+export async function getTasksForColumnPaginated(
+  columnId: number,
+  filters: { status?: string; assigneeId?: number } = {},
+  limit = 10,
+  offset = 0
+) {
+  const where: any = { columnId };
+  if (filters.status) where.status = filters.status;
+  if (filters.assigneeId) where.assigneeId = filters.assigneeId;
+
+  const [items, total] = await Promise.all([
+    prisma.task.findMany({
+      where,
+      orderBy: { order: 'asc' },
+      skip: offset,
+      take: limit,
+    }),
+    prisma.task.count({ where }),
+  ]);
+  return { items, total, limit, offset };
 }
 

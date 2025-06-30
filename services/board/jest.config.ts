@@ -1,3 +1,5 @@
+/// <reference types="node" />
+
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
