@@ -1,9 +1,9 @@
 import { Request, Response } from 'express';
 import { 
-  createBoardWithOwner, 
-  getAllBoards, 
+  createBoardWithOwner,
   getUserRoleForBoard, 
-  deleteBoard
+  deleteBoard,
+  getBoardsPaginated
 } from '../services/boardService';
 import { createBoardSchema } from "../schemas/boardSchema";
 import { AuthenticatedRequest } from "../types/express";
@@ -68,16 +68,28 @@ export async function createBoardHandler(
   }
 }
 
+
 /**
  * @openapi
  * /api/boards:
  *   get:
- *     summary: List all boards
+ *     summary: List all boards with pagination
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: offset
+ *         required: false
+ *         schema:
+ *           type: integer
  *     responses:
  *       200:
  *         description: List of boards
  */
-export async function getAllBoardsHandler(
+export async function getBoardsPaginatedHandler(
   req: AuthenticatedRequest,
   res: Response
 ): Promise<void> {
@@ -87,10 +99,14 @@ export async function getAllBoardsHandler(
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
+  // Parse limit/offset from query params, with defaults and max limit
+  const limit = Math.min(parseInt(req.query.limit as string) || 10, 50);
+  const offset = parseInt(req.query.offset as string) || 0;
+
   try {
-    const boards = await getAllBoards(userId);
-    req.log?.info({ userId }, 'Fetched all boards');
-    res.json(boards);
+    const result = await getBoardsPaginated(userId, limit, offset);
+    req.log?.info({ userId, limit, offset }, 'Fetched paginated boards');
+    res.json(result);
   } catch (error) {
     req.log?.error({ err: error, userId }, 'Failed to fetch boards');
     res.status(500).json({ error: 'Failed to fetch boards' });

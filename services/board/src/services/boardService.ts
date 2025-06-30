@@ -23,19 +23,25 @@ export async function createBoardWithOwner(name: string, userId: number) {
 }
 
 /**
- * Fetches all boards for a specific user from the database.
+ * Fetches a paginated list of boards for a specific user.
  * @param userId - The ID of the user.
- * @returns An array of board objects.
+ * @param limit - Max number of boards to return.
+ * @param offset - How many boards to skip (for pagination).
+ * @returns An object with items (boards) and total count.
  */
-export async function getAllBoards(userId: number) {
-  return prisma.board.findMany({
-    where: {
-      memberships: {
-        some: { userId }
-      }
-    },
-    orderBy: { id: 'asc' },
-  });
+export async function getBoardsPaginated(userId: number, limit = 10, offset = 0) {
+  const [items, total] = await Promise.all([
+    prisma.board.findMany({
+      where: { memberships: { some: { userId } } },
+      orderBy: { id: 'asc' },
+      skip: offset,
+      take: limit,
+    }),
+    prisma.board.count({
+      where: { memberships: { some: { userId } } },
+    }),
+  ]);
+  return { items, total, limit, offset };
 }
 
 /**
@@ -133,8 +139,12 @@ export async function deleteColumn(columnId: number) {
  * @param description - (Optional) The description of the task.
  * @returns The created task object.
  */
-export async function createTask(title: string, columnId: number, description?: string) {
-  // Find the current max order for tasks in this column
+export async function createTask(
+  title: string,
+  columnId: number,
+  description?: string,
+  assigneeId?: number
+) {
   const maxOrder = await prisma.task.aggregate({
     where: { columnId },
     _max: { order: true },
@@ -146,6 +156,7 @@ export async function createTask(title: string, columnId: number, description?: 
       description,
       columnId,
       order: nextOrder,
+      assigneeId, // <-- Add this line
     },
   });
 }
@@ -170,7 +181,7 @@ export async function getTasksForColumn(columnId: number) {
  */
 export async function updateTask(
   taskId: number,
-  data: { title?: string; description?: string; columnId?: number; order?: number }
+  data: { title?: string; description?: string; columnId?: number; order?: number; assigneeId?: number }
 ) {
   return prisma.task.update({
     where: { id: taskId },
@@ -200,5 +211,35 @@ export async function addBoardMember(boardId: number, userId: number, role: 'OWN
   return prisma.boardMembership.create({
     data: { boardId, userId, role },
   });
+}
+
+/**
+ * Fetches paginated and filtered tasks for a column.
+ * @param columnId - The ID of the column.
+ * @param filters - Optional filters (status, assigneeId, etc.).
+ * @param limit - Max number of tasks to return.
+ * @param offset - How many tasks to skip.
+ * @returns An object with items (tasks) and total count.
+ */
+export async function getTasksForColumnPaginated(
+  columnId: number,
+  filters: { status?: string; assigneeId?: number } = {},
+  limit = 10,
+  offset = 0
+) {
+  const where: any = { columnId };
+  if (filters.status) where.status = filters.status;
+  if (filters.assigneeId) where.assigneeId = filters.assigneeId;
+
+  const [items, total] = await Promise.all([
+    prisma.task.findMany({
+      where,
+      orderBy: { order: 'asc' },
+      skip: offset,
+      take: limit,
+    }),
+    prisma.task.count({ where }),
+  ]);
+  return { items, total, limit, offset };
 }
 

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { createTask, getTasksForColumn, updateTask, deleteTask, getUserRoleForBoard } from '../services/boardService';
+import { createTask, getTasksForColumn, updateTask, deleteTask, getUserRoleForBoard, getTasksForColumnPaginated } from '../services/boardService';
 import { createTaskSchema, updateTaskSchema } from "../schemas/taskSchema";
 import { AuthenticatedRequest } from "../types/express";
 import { requireRole } from "../utils/requireRole";
@@ -30,6 +30,8 @@ import { tasksCreated } from '../metrics';
  *                 type: string
  *               description:
  *                 type: string
+ *               assigneeId:
+ *                 type: integer
  *     responses:
  *       201:
  *         description: Task created
@@ -77,7 +79,8 @@ export async function createTaskHandler(
   }
   if (!requireRole(['OWNER', 'EDITOR'], role, res)) return;
   try {
-    const task = await createTask(parseResult.data.title, columnIdNum, parseResult.data.description);
+    const { title, description, assigneeId } = parseResult.data;
+    const task = await createTask(title, columnIdNum, description, assigneeId);
     tasksCreated.inc();
     req.log?.info({ userId, boardId: column.boardId, columnId: columnIdNum, taskId: task.id }, 'Task created');
     res.status(201).json(task);
@@ -102,6 +105,26 @@ export async function createTaskHandler(
  *         required: true
  *         schema:
  *           type: integer
+ *       - in: query
+ *         name: assigneeId
+ *         required: false
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: offset
+ *         required: false
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: status
+ *         required: false
+ *         schema:
+ *           type: string
  *     responses:
  *       200:
  *         description: List of tasks
@@ -110,39 +133,49 @@ export async function getTasksForColumnHandler(
   req: Request,
   res: Response
 ): Promise<void> {
-  const { columnId } = req.params;
-  const columnIdNum = Number(columnId);
   const userId = (req as AuthenticatedRequest).user?.id;
+  const columnId = Number(req.params.columnId);
+
   if (typeof userId !== 'number') {
-    req.log?.warn('Unauthorized tasks list attempt');
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
-  if (isNaN(columnIdNum)) {
-    req.log?.warn({ userId }, 'Invalid columnId for getTasks');
+
+  // Validate columnId
+  if (isNaN(columnId)) {
     res.status(400).json({ error: 'Column ID must be a number' });
     return;
   }
-  const column = await prisma.column.findUnique({ where: { id: columnIdNum } });
+
+  // Find the column and its board
+  const column = await prisma.column.findUnique({ where: { id: columnId } });
   if (!column) {
-    req.log?.warn({ userId, columnId: columnIdNum }, 'Column not found for getTasks');
-    res.status(404).json({ error: 'Column not found' });
+    res.status(404).json({ error: "Column not found" });
     return;
   }
+
+  // Check membership/role
   const role = await getUserRoleForBoard(column.boardId, userId);
   if (!role) {
-    req.log?.warn({ userId, columnId: columnIdNum }, 'No role found for getTasks');
-    res.status(404).json({ error: 'Column not found' });
+    // Hide existence from non-members
+    res.status(404).json({ error: "Column not found" });
     return;
   }
-  if (!requireRole(['OWNER', 'EDITOR', 'VIEWER'], role, res)) return;
-  try {
-    const tasks = await getTasksForColumn(columnIdNum);
-    req.log?.info({ userId, boardId: column.boardId, columnId: columnIdNum }, 'Listed tasks for column');
-    res.json(tasks);
-  } catch (error) {
-    req.log?.error({ err: error, userId, boardId: column.boardId, columnId: columnIdNum }, 'Failed to fetch tasks');
-    res.status(500).json({ error: 'Failed to fetch tasks' });
+
+  // Parse query params for pagination/filtering
+  const limit = req.query.limit ? Math.min(parseInt(req.query.limit as string), 50) : undefined;
+  const offset = req.query.offset ? parseInt(req.query.offset as string) : undefined;
+  const status = req.query.status as string | undefined;
+  const assigneeId = req.query.assigneeId ? Number(req.query.assigneeId) : undefined;
+
+  if (limit !== undefined || offset !== undefined || status || assigneeId) {
+    // Use paginated/filtering logic
+    const result = await getTasksForColumnPaginated(columnId, { status, assigneeId }, limit, offset);
+    res.json(result);
+  } else {
+    // Return all tasks
+    const items = await getTasksForColumn(columnId);
+    res.json(items);
   }
 }
 
@@ -171,6 +204,8 @@ export async function getTasksForColumnHandler(
  *               order:
  *                 type: integer
  *               columnId:
+ *                 type: integer
+ *               assigneeId:
  *                 type: integer
  *     responses:
  *       200:

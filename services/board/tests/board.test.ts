@@ -76,7 +76,7 @@ describe('Board API', () => {
       .get('/api/boards')
       .set('Authorization', `Bearer ${accessToken}`);
     expect(res.statusCode).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
+    expect(Array.isArray(res.body.items)).toBe(true);
   });
 
   it('should return 404 for a non-existent board', async () => {

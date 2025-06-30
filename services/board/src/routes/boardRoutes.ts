@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import {
   createBoardHandler,
-  getAllBoardsHandler,
   deleteBoardHandler,
+  getBoardsPaginatedHandler,
 } from '../controllers/boardController';
 import {
   createColumnHandler,
@@ -26,7 +26,7 @@ import {
 const router = Router();
 
 router.post('/boards', createBoardHandler);
-router.get('/boards', getAllBoardsHandler);
+router.get('/boards', getBoardsPaginatedHandler);
 router.delete('/boards/:boardId', deleteBoardHandler);
 
 router.post('/boards/:boardId/columns', createColumnHandler);

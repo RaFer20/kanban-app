@@ -43,6 +43,7 @@ model Task {
   column      Column   @relation(fields: [columnId], references: [id], onDelete: Cascade)
   columnId    Int
   order       Int
+  assigneeId  Int?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
