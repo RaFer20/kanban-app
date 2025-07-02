@@ -15,12 +15,13 @@ datasource db {
 }
 
 model Board {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique
-  columns   Column[]
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  columns     Column[]
   memberships BoardMembership[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime? // <-- Add this
 }
 
 model Column {
@@ -32,8 +33,9 @@ model Column {
   order     Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime? // <-- Add this
 
-  @@unique([boardId, name]) // This line enforces unique column names per board
+  @@unique([boardId, name])
 }
 
 model Task {
@@ -46,8 +48,9 @@ model Task {
   assigneeId  Int?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  deletedAt   DateTime? // <-- Add this
 
-  @@unique([columnId, title]) // This line enforces unique task titles per column
+  @@unique([columnId, title])
 }
 
 model BoardMembership {

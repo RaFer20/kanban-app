@@ -27,18 +27,23 @@ This service powers the Kanban board backend (boards, columns, tasks).
 - **GET `/api/boards`**  
   List all boards.  
   **Responses:**  
-  - `200 OK`: `[ ...board objects ]`
+  - `200 OK`: `{ "items": [ ...board objects ], "total": totalCount, "limit": limit, "offset": offset }`
 
   **Response Example:**
   ```json
-  [
-    {
-      "id": 1,
-      "name": "Project Board",
-      "createdAt": "2025-06-24T12:34:56.789Z",
-      "updatedAt": "2025-06-24T12:34:56.789Z"
-    }
-  ]
+  {
+    "items": [
+      {
+        "id": 1,
+        "name": "Project Board",
+        "createdAt": "2025-06-24T12:34:56.789Z",
+        "updatedAt": "2025-06-24T12:34:56.789Z"
+      }
+    ],
+    "total": 1,
+    "limit": 10,
+    "offset": 0
+  }
   ```
 
 ### Columns
@@ -128,27 +133,46 @@ This service powers the Kanban board backend (boards, columns, tasks).
     "description": "Optional",
     "columnId": 1,
     "order": 1,
+    "assigneeId": 2,
     "createdAt": "2025-06-24T12:36:00.000Z",
     "updatedAt": "2025-06-24T12:36:00.000Z"
   }
   ```
 
 - **GET `/api/columns/:columnId/tasks`**  
-  List tasks in a column.
+  List tasks in a column. Supports filtering and pagination via query parameters:
+
+  | Query Param | Type    | Description                    |
+  |-------------|---------|--------------------------------|
+  | assigneeId  | integer | Only tasks assigned to user    |
+  | status      | string  | Only tasks with this status    |
+  | limit       | integer | Max number of tasks to return  |
+  | offset      | integer | How many tasks to skip         |
+
+  **Example:**
+  ```
+  GET /api/columns/1/tasks?assigneeId=2&status=done&limit=10&offset=0
+  ```
 
   **Response Example:**
   ```json
-  [
-    {
-      "id": 1,
-      "title": "Task 1",
-      "description": "Optional",
-      "columnId": 1,
-      "order": 1,
-      "createdAt": "2025-06-24T12:36:00.000Z",
-      "updatedAt": "2025-06-24T12:36:00.000Z"
-    }
-  ]
+  {
+    "items": [
+      {
+        "id": 1,
+        "title": "Task 1",
+        "description": "Optional",
+        "columnId": 1,
+        "order": 1,
+        "assigneeId": 2,
+        "createdAt": "2025-06-24T12:36:00.000Z",
+        "updatedAt": "2025-06-24T12:36:00.000Z"
+      }
+    ],
+    "total": 1,
+    "limit": 10,
+    "offset": 0
+  }
   ```
 
 - **PATCH `/api/tasks/:taskId`**  
@@ -229,3 +253,12 @@ Content-Type: application/json
 - Logs include `trace_id` and `span_id` for easy correlation with traces.
 - View traces in Grafana Tempo at [http://localhost:3000/explore?left=...](http://localhost:3001/explore).
 - For more, see [OpenTelemetry docs](https://opentelemetry.io/docs/) and [Grafana Tempo docs](https://grafana.com/docs/tempo/latest/).
+
+## Permissions (RBAC)
+
+- Only board members can access a board, its columns, or tasks.
+- Roles:
+  - **OWNER:** Full control (manage board, columns, tasks, members)
+  - **EDITOR:** Can manage columns and tasks
+  - **VIEWER:** Read-only access
+- Only OWNER can add/remove members or delete the board.

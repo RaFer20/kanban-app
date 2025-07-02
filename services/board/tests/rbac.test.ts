@@ -307,6 +307,27 @@ describe('RBAC', () => {
         .set('Authorization', `Bearer ${viewerToken}`);
       expect(failRes.statusCode).toBe(404);
     });
+
+    it('should not allow adding a member to a soft-deleted board', async () => {
+      // Create a board
+      const boardRes = await request(app)
+        .post('/api/boards')
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ name: 'Soft Delete Membership Board' });
+      const boardId = boardRes.body.id;
+
+      // Soft-delete the board
+      await request(app)
+        .delete(`/api/boards/${boardId}`)
+        .set('Authorization', `Bearer ${ownerToken}`);
+
+      // Try to add a member
+      const res = await request(app)
+        .post(`/api/boards/${boardId}/members`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ userId: viewerId, role: 'VIEWER' });
+      expect(res.statusCode).toBe(404);
+    });
   });
 
   describe('Removed Member', () => {

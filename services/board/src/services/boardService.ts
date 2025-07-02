@@ -32,13 +32,19 @@ export async function createBoardWithOwner(name: string, userId: number) {
 export async function getBoardsPaginated(userId: number, limit = 10, offset = 0) {
   const [items, total] = await Promise.all([
     prisma.board.findMany({
-      where: { memberships: { some: { userId } } },
+      where: { 
+        memberships: { some: { userId } },
+        deletedAt: null,
+      },
       orderBy: { id: 'asc' },
       skip: offset,
       take: limit,
     }),
     prisma.board.count({
-      where: { memberships: { some: { userId } } },
+      where: { 
+        memberships: { some: { userId } },
+        deletedAt: null,
+      },
     }),
   ]);
   return { items, total, limit, offset };
@@ -63,8 +69,21 @@ export async function getUserRoleForBoard(boardId: number, userId: number) {
  * @returns The deleted board object.
  */
 export async function deleteBoard(boardId: number) {
-  return prisma.board.delete({
-    where: { id: boardId },
+  const now = new Date();
+  // Soft-delete board, columns, and tasks in a transaction
+  return prisma.$transaction(async (tx) => {
+    await tx.board.update({
+      where: { id: boardId },
+      data: { deletedAt: now },
+    });
+    await tx.column.updateMany({
+      where: { boardId },
+      data: { deletedAt: now },
+    });
+    await tx.task.updateMany({
+      where: { column: { boardId } },
+      data: { deletedAt: now },
+    });
   });
 }
 
@@ -99,7 +118,7 @@ export async function createColumn(name: string, boardId: number) {
  */
 export async function getColumnsForBoard(boardId: number) {
   return prisma.column.findMany({
-    where: { boardId },
+    where: { boardId, deletedAt: null },
     orderBy: { order: 'asc' },
   });
 }
@@ -126,8 +145,16 @@ export async function updateColumn(
  * @returns The deleted column object.
  */
 export async function deleteColumn(columnId: number) {
-  return prisma.column.delete({
-    where: { id: columnId },
+  const now = new Date();
+  return prisma.$transaction(async (tx) => {
+    await tx.column.update({
+      where: { id: columnId },
+      data: { deletedAt: now },
+    });
+    await tx.task.updateMany({
+      where: { columnId },
+      data: { deletedAt: now },
+    });
   });
 }
 
@@ -156,7 +183,7 @@ export async function createTask(
       description,
       columnId,
       order: nextOrder,
-      assigneeId, // <-- Add this line
+      assigneeId,
     },
   });
 }
@@ -168,7 +195,7 @@ export async function createTask(
  */
 export async function getTasksForColumn(columnId: number) {
   return prisma.task.findMany({
-    where: { columnId },
+    where: { columnId, deletedAt: null },
     orderBy: { order: 'asc' },
   });
 }
@@ -195,8 +222,9 @@ export async function updateTask(
  * @returns The deleted task object.
  */
 export async function deleteTask(taskId: number) {
-  return prisma.task.delete({
+  return prisma.task.update({
     where: { id: taskId },
+    data: { deletedAt: new Date() },
   });
 }
 

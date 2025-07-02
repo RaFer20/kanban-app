@@ -5,6 +5,7 @@ import { AuthenticatedRequest } from "../types/express";
 import { requireRole } from "../utils/requireRole";
 import prisma from '../prisma';
 import { logger } from '../logger';
+import { ensureBoardActive, ensureColumnActive } from '../utils/entityChecks';
 
 /**
  * @openapi
@@ -61,9 +62,9 @@ export async function createColumnHandler(
     res.status(400).json({ error: 'Board ID must be a number' });
     return;
   }
-  const board = await prisma.board.findUnique({ where: { id: boardIdNum } });
+  const board = await ensureBoardActive(boardIdNum);
   if (!board) {
-    req.log?.warn({ userId, boardId: boardIdNum }, 'Board not found for createColumn');
+    req.log?.warn({ userId, boardId: boardIdNum }, 'Board not found or deleted for createColumn');
     res.status(404).json({ error: 'Board not found' });
     return;
   }
@@ -120,9 +121,9 @@ export async function getColumnsForBoardHandler(
     res.status(400).json({ error: 'Board ID must be a number' });
     return;
   }
-  const board = await prisma.board.findUnique({ where: { id: boardIdNum } });
+  const board = await ensureBoardActive(boardIdNum);
   if (!board) {
-    req.log?.warn({ userId, boardId: boardIdNum }, 'Board not found for getColumns');
+    req.log?.warn({ userId, boardId: boardIdNum }, 'Board not found or deleted for getColumns');
     res.status(404).json({ error: 'Board not found' });
     return;
   }
@@ -193,9 +194,9 @@ export async function updateColumnHandler(req: Request, res: Response): Promise<
     res.status(400).json({ error: 'Column ID must be a number' });
     return;
   }
-  const column = await prisma.column.findUnique({ where: { id: columnIdNum } });
+  const column = await ensureColumnActive(columnIdNum);
   if (!column) {
-    req.log?.warn({ userId, columnId: columnIdNum }, 'Column not found for update');
+    req.log?.warn({ userId, columnId: columnIdNum }, 'Column not found or deleted');
     res.status(404).json({ error: 'Column not found' });
     return;
   }
@@ -253,9 +254,9 @@ export async function deleteColumnHandler(req: Request, res: Response): Promise<
     res.status(400).json({ error: 'Column ID must be a number' });
     return;
   }
-  const column = await prisma.column.findUnique({ where: { id: columnIdNum } });
+  const column = await ensureColumnActive(columnIdNum);
   if (!column) {
-    req.log?.warn({ userId, columnId: columnIdNum }, 'Column not found for delete');
+    req.log?.warn({ userId, columnId: columnIdNum }, 'Column not found or already deleted');
     res.status(404).json({ error: 'Column not found' });
     return;
   }

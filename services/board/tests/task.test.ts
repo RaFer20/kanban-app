@@ -41,6 +41,7 @@ beforeEach(async () => {
 describe('Task API', () => {
   let boardId: number;
   let columnId: number;
+  let taskId: number; // <-- Add this here
   let unique: string;
 
   beforeEach(async () => {
@@ -133,6 +134,45 @@ describe('Task API', () => {
   it('should return 404 when deleting a non-existent task', async () => {
     const res = await request(app)
       .delete('/api/tasks/999999')
+      .set('Authorization', `Bearer ${accessToken}`);
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('should not allow updating a soft-deleted task', async () => {
+    // Create and soft-delete a task
+    const taskRes = await request(app)
+      .post(`/api/columns/${columnId}/tasks`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ title: 'Task to Soft Delete' });
+    taskId = taskRes.body.id;
+
+    await request(app)
+      .delete(`/api/tasks/${taskId}`)
+      .set('Authorization', `Bearer ${accessToken}`);
+
+    // Try to update the task
+    const res = await request(app)
+      .patch(`/api/tasks/${taskId}`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ title: 'Should Not Work' });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('should not allow deleting a soft-deleted task', async () => {
+    // Create and soft-delete a task
+    const taskRes = await request(app)
+      .post(`/api/columns/${columnId}/tasks`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ title: 'Task to Soft Delete' });
+    taskId = taskRes.body.id;
+
+    await request(app)
+      .delete(`/api/tasks/${taskId}`)
+      .set('Authorization', `Bearer ${accessToken}`);
+
+    // Try to delete again
+    const res = await request(app)
+      .delete(`/api/tasks/${taskId}`)
       .set('Authorization', `Bearer ${accessToken}`);
     expect(res.statusCode).toBe(404);
   });

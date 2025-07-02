@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import prisma from '../prisma';
 import { getUserRoleForBoard, addBoardMember } from '../services/boardService';
 import { requireRole } from "../utils/requireRole";
+import { ensureBoardActive } from '../utils/entityChecks';
 
 /**
  * @openapi
@@ -51,9 +52,9 @@ export async function addBoardMemberHandler(
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
-  const board = await prisma.board.findUnique({ where: { id: boardId } });
+  const board = await ensureBoardActive(boardId);
   if (!board) {
-    req.log?.warn({ requesterId, boardId }, 'Board not found for add member');
+    req.log?.warn({ requesterId, boardId }, 'Board not found or deleted for add member');
     res.status(404).json({ error: "Board not found" });
     return;
   }
@@ -100,9 +101,9 @@ export async function listBoardMembersHandler(
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
-  const board = await prisma.board.findUnique({ where: { id: boardId } });
+  const board = await ensureBoardActive(boardId);
   if (!board) {
-    req.log?.warn({ userId, boardId }, 'Board not found for list members');
+    req.log?.warn({ userId, boardId }, 'Board not found or deleted for list members');
     res.status(404).json({ error: "Board not found" });
     return;
   }
@@ -160,9 +161,9 @@ export async function removeBoardMemberHandler(
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
-  const board = await prisma.board.findUnique({ where: { id: boardId } });
+  const board = await ensureBoardActive(boardId);
   if (!board) {
-    req.log?.warn({ requesterId, boardId }, 'Board not found for remove member');
+    req.log?.warn({ requesterId, boardId }, 'Board not found or deleted for remove member');
     res.status(404).json({ error: "Board not found" });
     return;
   }
@@ -229,9 +230,9 @@ export async function updateBoardMemberRoleHandler(
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
-  const board = await prisma.board.findUnique({ where: { id: boardId } });
+  const board = await ensureBoardActive(boardId);
   if (!board) {
-    req.log?.warn({ requesterId, boardId }, 'Board not found for update member role');
+    req.log?.warn({ requesterId, boardId }, 'Board not found or deleted for update member role');
     res.status(404).json({ error: "Board not found" });
     return;
   }

@@ -131,4 +131,25 @@ describe('Board API', () => {
       .set('Authorization', `Bearer ${otherToken}`);
     expect([403, 404]).toContain(res.statusCode);
   });
+
+  it('should not allow creating a column on a soft-deleted board', async () => {
+    // Create a board
+    const boardRes = await request(app)
+      .post('/api/boards')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ name: 'Soft Delete Board' });
+    const boardId = boardRes.body.id;
+
+    // Soft-delete the board
+    await request(app)
+      .delete(`/api/boards/${boardId}`)
+      .set('Authorization', `Bearer ${accessToken}`);
+
+    // Try to create a column
+    const res = await request(app)
+      .post(`/api/boards/${boardId}/columns`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ name: 'Should Fail' });
+    expect(res.statusCode).toBe(404);
+  });
 });

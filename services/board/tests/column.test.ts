@@ -128,4 +128,31 @@ describe('Column API', () => {
       .send({ title: 'Task' });
     expect(res.statusCode).toBe(400);
   });
+
+  it('should not allow creating a task on a soft-deleted column', async () => {
+    // Create board and column
+    const boardRes = await request(app)
+      .post('/api/boards')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ name: 'Board for Soft Delete Column' });
+    const boardId = boardRes.body.id;
+
+    const colRes = await request(app)
+      .post(`/api/boards/${boardId}/columns`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ name: 'Soft Delete Column' });
+    const columnId = colRes.body.id;
+
+    // Soft-delete the column
+    await request(app)
+      .delete(`/api/columns/${columnId}`)
+      .set('Authorization', `Bearer ${accessToken}`);
+
+    // Try to create a task
+    const res = await request(app)
+      .post(`/api/columns/${columnId}/tasks`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ title: 'Should Fail' });
+    expect(res.statusCode).toBe(404);
+  });
 });

@@ -5,6 +5,7 @@ import { AuthenticatedRequest } from "../types/express";
 import { requireRole } from "../utils/requireRole";
 import prisma from '../prisma';
 import { tasksCreated } from '../metrics';
+import { ensureTaskActive, ensureColumnActive } from '../utils/entityChecks';
 
 /**
  * @openapi
@@ -65,9 +66,9 @@ export async function createTaskHandler(
     res.status(400).json({ error: 'Column ID must be a number' });
     return;
   }
-  const column = await prisma.column.findUnique({ where: { id: columnIdNum } });
+  const column = await ensureColumnActive(columnIdNum);
   if (!column) {
-    req.log?.warn({ userId, columnId: columnIdNum }, 'Column not found for createTask');
+    req.log?.warn({ userId, columnId: columnIdNum }, 'Column not found or deleted for createTask');
     res.status(404).json({ error: 'Column not found' });
     return;
   }
@@ -148,7 +149,7 @@ export async function getTasksForColumnHandler(
   }
 
   // Find the column and its board
-  const column = await prisma.column.findUnique({ where: { id: columnId } });
+  const column = await ensureColumnActive(columnId);
   if (!column) {
     res.status(404).json({ error: "Column not found" });
     return;
@@ -235,15 +236,15 @@ export async function updateTaskHandler(req: Request, res: Response): Promise<vo
     res.status(400).json({ error: 'Task ID must be a number' });
     return;
   }
-  const task = await prisma.task.findUnique({ where: { id: taskIdNum } });
+  const task = await ensureTaskActive(taskIdNum);
   if (!task) {
-    req.log?.warn({ userId, taskId: taskIdNum }, 'Task not found for update');
+    req.log?.warn({ userId, taskId: taskIdNum }, 'Task not found or deleted for update');
     res.status(404).json({ error: 'Task not found' });
     return;
   }
-  const column = await prisma.column.findUnique({ where: { id: task.columnId } });
+  const column = await ensureColumnActive(task.columnId);
   if (!column) {
-    req.log?.warn({ userId, taskId: taskIdNum }, 'Column not found for updateTask');
+    req.log?.warn({ userId, columnId: task.columnId }, 'Column not found or deleted for updateTask');
     res.status(404).json({ error: 'Column not found' });
     return;
   }
@@ -301,15 +302,15 @@ export async function deleteTaskHandler(req: Request, res: Response): Promise<vo
     res.status(400).json({ error: 'Task ID must be a number' });
     return;
   }
-  const task = await prisma.task.findUnique({ where: { id: taskIdNum } });
+  const task = await ensureTaskActive(taskIdNum);
   if (!task) {
-    req.log?.warn({ userId, taskId: taskIdNum }, 'Task not found for delete');
+    req.log?.warn({ userId, taskId: taskIdNum }, 'Task not found or already deleted for delete');
     res.status(404).json({ error: 'Task not found' });
     return;
   }
-  const column = await prisma.column.findUnique({ where: { id: task.columnId } });
+  const column = await ensureColumnActive(task.columnId);
   if (!column) {
-    req.log?.warn({ userId, taskId: taskIdNum }, 'Column not found for deleteTask');
+    req.log?.warn({ userId, columnId: task.columnId }, 'Column not found or deleted for deleteTask');
     res.status(404).json({ error: 'Column not found' });
     return;
   }

@@ -10,6 +10,7 @@ import { AuthenticatedRequest } from "../types/express";
 import { requireRole } from "../utils/requireRole";
 import prisma from '../prisma';
 import { boardsCreated } from '../metrics';
+import { ensureBoardActive } from '../utils/entityChecks';
 
 /**
  * @openapi
@@ -143,10 +144,10 @@ export async function deleteBoardHandler(
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
-  const board = await prisma.board.findUnique({ where: { id: boardId } });
+  const board = await ensureBoardActive(boardId);
   if (!board) {
-    req.log?.warn({ userId, boardId }, 'Board not found for delete');
-    res.status(404).json({ error: "Board not found" });
+    req.log?.warn({ userId, boardId }, 'Board not found or deleted');
+    res.status(404).json({ error: 'Board not found' });
     return;
   }
   const role = await getUserRoleForBoard(boardId, userId);
