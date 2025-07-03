@@ -16,7 +16,7 @@ afterAll(async () => {
 
 beforeAll(async () => {
   // Register a test user (ignore errors if already exists)
-  const email = `testuser${Date.now()}@example.com`;
+  const email = `testuser${Date.now()}@boardtests.com`;
   const password = 'testpassword';
 
   await request('http://auth:8000')

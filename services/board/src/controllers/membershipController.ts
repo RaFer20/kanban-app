@@ -10,6 +10,9 @@ import { ensureBoardActive } from '../utils/entityChecks';
  * /api/boards/{boardId}/members:
  *   post:
  *     summary: Add a member to the board
+ *     description: |
+ *       Only the board OWNER can add members.
+ *       Returns 404 if the board is soft-deleted.
  *     parameters:
  *       - in: path
  *         name: boardId
@@ -36,7 +39,9 @@ import { ensureBoardActive } from '../utils/entityChecks';
  *       400:
  *         description: Validation error
  *       404:
- *         description: Board not found
+ *         description: Board not found or deleted
+ *       401:
+ *         description: Unauthorized
  *       403:
  *         description: Forbidden
  */

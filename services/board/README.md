@@ -262,3 +262,19 @@ Content-Type: application/json
   - **EDITOR:** Can manage columns and tasks
   - **VIEWER:** Read-only access
 - Only OWNER can add/remove members or delete the board.
+
+---
+
+## Soft Deletes
+
+- Deleting a board, column, or task does **not** permanently remove it from the database. Instead, it is marked as deleted (`deletedAt` is set).
+- Soft-deleted boards, columns, and tasks are **excluded** from all list and fetch endpoints.
+- Attempting to create, update, or interact with a soft-deleted board, column, or task will return a `404 Not Found` error.
+- Deleting a board will also soft-delete all its columns and tasks.
+- Deleting a column will also soft-delete all its tasks.
+
+## Demo Data
+
+- The demo boards and tasks are reset every hour.
+- All changes are public and temporary.
+- Board creation/deletion is disabled for the demo user.

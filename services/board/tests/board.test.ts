@@ -18,7 +18,7 @@ afterAll(async () => {
 
 beforeAll(async () => {
   // Register a test user (ignore errors if already exists)
-  const email = `testuser${Date.now()}@example.com`;
+  const email = `testuser${Date.now()}@boardtests.com`;
   const password = 'testpassword';
 
   await request('http://auth:8000')
@@ -109,7 +109,7 @@ describe('Board API', () => {
 
   it('should return 403 if a non-owner tries to delete a board', async () => {
     // Register and login as a second user
-    const email = `otheruser${Date.now()}@example.com`;
+    const email = `otheruser${Date.now()}@boardtests.com`;
     const password = 'testpassword';
     await request('http://auth:8000').post('/api/v1/users/').send({ email, password });
     const loginRes = await request('http://auth:8000')

@@ -12,6 +12,9 @@ import { ensureBoardActive, ensureColumnActive } from '../utils/entityChecks';
  * /api/boards/{boardId}/columns:
  *   post:
  *     summary: Create a column for a board
+ *     description: |
+ *       Only OWNER or EDITOR can create columns.
+ *       Returns 404 if the board is soft-deleted.
  *     parameters:
  *       - in: path
  *         name: boardId
@@ -35,9 +38,13 @@ import { ensureBoardActive, ensureColumnActive } from '../utils/entityChecks';
  *       400:
  *         description: Validation error
  *       404:
- *         description: Board not found
+ *         description: Board not found or deleted
  *       409:
  *         description: Duplicate column name
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
  */
 export async function createColumnHandler(
   req: Request,
@@ -149,6 +156,9 @@ export async function getColumnsForBoardHandler(
  * /api/columns/{columnId}:
  *   patch:
  *     summary: Update a column (name/order)
+ *     description: |
+ *       Only OWNER or EDITOR can update columns.
+ *       Returns 404 if the column or its board is soft-deleted.
  *     parameters:
  *       - in: path
  *         name: columnId
@@ -172,7 +182,11 @@ export async function getColumnsForBoardHandler(
  *       400:
  *         description: Validation error
  *       404:
- *         description: Column not found
+ *         description: Column not found or deleted
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
  */
 export async function updateColumnHandler(req: Request, res: Response): Promise<void> {
   const parseResult = updateColumnSchema.safeParse(req.body);
@@ -225,7 +239,11 @@ export async function updateColumnHandler(req: Request, res: Response): Promise<
  * @openapi
  * /api/columns/{columnId}:
  *   delete:
- *     summary: Delete a column
+ *     summary: Delete a column (soft delete)
+ *     description: |
+ *       Soft-deletes the column and all its tasks.
+ *       Only OWNER or EDITOR can delete columns.
+ *       Returns 404 if the column or its board is soft-deleted.
  *     parameters:
  *       - in: path
  *         name: columnId
@@ -238,7 +256,11 @@ export async function updateColumnHandler(req: Request, res: Response): Promise<
  *       400:
  *         description: Validation error
  *       404:
- *         description: Column not found
+ *         description: Column not found or already deleted
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
  */
 export async function deleteColumnHandler(req: Request, res: Response): Promise<void> {
   const { columnId } = req.params;

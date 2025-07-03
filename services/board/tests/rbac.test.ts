@@ -22,12 +22,12 @@ let addedMemberId: number;
 beforeAll(async () => {
   // Register users
   const users = [
-    { email: `owner${Date.now()}@test.com`, password: 'pw' },
-    { email: `editor${Date.now()}@test.com`, password: 'pw' },
-    { email: `viewer${Date.now()}@test.com`, password: 'pw' },
-    { email: `removedmember${Date.now()}@test.com`, password: 'pw' },
-    { email: `nevermember${Date.now()}@test.com`, password: 'pw' },
-    { email: `addedmember${Date.now()}@test.com`, password: 'pw' },
+    { email: `owner${Date.now()}@boardtests.com`, password: 'pw' },
+    { email: `editor${Date.now()}@boardtests.com`, password: 'pw' },
+    { email: `viewer${Date.now()}@boardtests.com`, password: 'pw' },
+    { email: `removedmember${Date.now()}@boardtests.com`, password: 'pw' },
+    { email: `nevermember${Date.now()}@boardtests.com`, password: 'pw' },
+    { email: `addedmember${Date.now()}@boardtests.com`, password: 'pw' },
   ];
   for (const user of users) {
     await request('http://auth:8000').post('/api/v1/users/').send(user);

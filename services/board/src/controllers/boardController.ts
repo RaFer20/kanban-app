@@ -118,7 +118,11 @@ export async function getBoardsPaginatedHandler(
  * @openapi
  * /api/boards/{boardId}:
  *   delete:
- *     summary: Delete a board
+ *     summary: Delete a board (soft delete)
+ *     description: |
+ *       Soft-deletes the board and all its columns and tasks.
+ *       Any further actions on this board, its columns, or tasks will return 404.
+ *       Only the OWNER can delete a board.
  *     parameters:
  *       - in: path
  *         name: boardId
@@ -131,7 +135,11 @@ export async function getBoardsPaginatedHandler(
  *       400:
  *         description: Validation error
  *       404:
- *         description: Board not found
+ *         description: Board not found or already deleted
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
  */
 export async function deleteBoardHandler(
   req: AuthenticatedRequest,

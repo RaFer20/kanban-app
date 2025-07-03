@@ -12,6 +12,9 @@ import { ensureTaskActive, ensureColumnActive } from '../utils/entityChecks';
  * /api/columns/{columnId}/tasks:
  *   post:
  *     summary: Create a task in a column
+ *     description: |
+ *       Only OWNER or EDITOR can create tasks.
+ *       Returns 404 if the column or its board is soft-deleted.
  *     parameters:
  *       - in: path
  *         name: columnId
@@ -39,9 +42,13 @@ import { ensureTaskActive, ensureColumnActive } from '../utils/entityChecks';
  *       400:
  *         description: Validation error
  *       404:
- *         description: Column not found
+ *         description: Column not found or deleted
  *       409:
  *         description: Duplicate task title
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
  */
 export async function createTaskHandler(
   req: Request,
@@ -185,6 +192,9 @@ export async function getTasksForColumnHandler(
  * /api/tasks/{taskId}:
  *   patch:
  *     summary: Update a task
+ *     description: |
+ *       Only OWNER or EDITOR can update tasks.
+ *       Returns 404 if the task, its column, or its board is soft-deleted.
  *     parameters:
  *       - in: path
  *         name: taskId
@@ -214,7 +224,11 @@ export async function getTasksForColumnHandler(
  *       400:
  *         description: Validation error
  *       404:
- *         description: Task not found
+ *         description: Task not found or deleted
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
  */
 export async function updateTaskHandler(req: Request, res: Response): Promise<void> {
   const parseResult = updateTaskSchema.safeParse(req.body);
@@ -273,7 +287,10 @@ export async function updateTaskHandler(req: Request, res: Response): Promise<vo
  * @openapi
  * /api/tasks/{taskId}:
  *   delete:
- *     summary: Delete a task
+ *     summary: Delete a task (soft delete)
+ *     description: |
+ *       Only OWNER or EDITOR can delete tasks.
+ *       Returns 404 if the task, its column, or its board is soft-deleted.
  *     parameters:
  *       - in: path
  *         name: taskId
@@ -286,7 +303,11 @@ export async function updateTaskHandler(req: Request, res: Response): Promise<vo
  *       400:
  *         description: Validation error
  *       404:
- *         description: Task not found
+ *         description: Task not found or already deleted
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
  */
 export async function deleteTaskHandler(req: Request, res: Response): Promise<void> {
   const { taskId } = req.params;
