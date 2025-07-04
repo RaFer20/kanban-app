@@ -28,6 +28,7 @@ dependencies = [
     "opentelemetry-exporter-otlp>=1.22,<2.0.0",
     "python-json-logger (>=3.3.0,<4.0.0)",
     "opentelemetry-instrumentation-sqlalchemy (>=0.55b1,<0.56)",
+    "slowapi (>=0.1.9,<0.2.0)",
 ]
 
 

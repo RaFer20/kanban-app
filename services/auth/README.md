@@ -102,3 +102,10 @@ poetry run pytest
 - Docker
 
 ---
+
+## Rate Limiting
+
+- Registration: 40 requests per minute per IP
+- Login: 40 requests per minute per IP
+- Refresh: 100 requests per minute per IP
+- Exceeding these limits returns HTTP 429 Too Many Requests.

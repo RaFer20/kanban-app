@@ -4,7 +4,7 @@ from uuid import uuid4
 import logging
 
 # Third-party
-from fastapi import APIRouter, Depends, HTTPException, status, Body, Response
+from fastapi import APIRouter, Depends, HTTPException, status, Body, Response, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from jose import JWTError, jwt
@@ -27,6 +27,7 @@ from app.services.refresh_tokens import (
     get_all_valid_refresh_tokens_for_user,
     get_refresh_token_from_db,
 )
+from app.limiter import limiter
 
 settings = get_settings()
 router = APIRouter()
@@ -34,7 +35,12 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/users/", response_model=UserOut, tags=["auth"])
-async def register_user(user_create: UserCreate, db: AsyncSession = Depends(get_db)):
+@limiter.limit("40/minute")  # 40 registrations per minute per IP
+async def register_user(
+    request: Request,
+    user_create: UserCreate,
+    db: AsyncSession = Depends(get_db),
+):
     """
     Register a new user.
 
@@ -57,7 +63,9 @@ async def register_user(user_create: UserCreate, db: AsyncSession = Depends(get_
 
 
 @router.post("/token", response_model=Token, tags=["auth"])
+@limiter.limit("40/minute")  # 40 login attempts per minute per IP
 async def login_user(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
 ) -> Token:
@@ -136,7 +144,9 @@ async def read_current_user(current_user: User = Depends(get_current_user)):
 
 
 @router.post("/refresh", response_model=Token, tags=["auth"])
+@limiter.limit("100/minute")  # 100 refreshes per minute per IP
 async def refresh_access_token(
+    request: Request,
     refresh_token: str = Body(..., embed=True),
     db: AsyncSession = Depends(get_db),
 ) -> Token:

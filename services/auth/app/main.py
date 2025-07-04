@@ -16,6 +16,10 @@ from app.core.config import get_settings
 from app.db.session import AsyncSessionLocal, engine
 from app.seeds import create_guest_user_if_not_exists
 from app.core import metrics
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from app.limiter import limiter
 
 # Observability imports
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -89,6 +93,10 @@ async def log_requests(request: Request, call_next):
         }
     )
     return response
+
+# Rate limiter setup
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler) #type: ignore
 
 # Include your existing API routes
 app.include_router(routes.router, prefix="/api/v1")
