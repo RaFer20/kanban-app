@@ -2,6 +2,8 @@ import request from 'supertest';
 import app from '../src/index';
 import prisma from '../src/prisma';
 
+const authServiceUrl = process.env.AUTH_SERVICE_URL || 'http://auth:8000';
+
 let ownerToken: string;
 let editorToken: string;
 let viewerToken: string;
@@ -30,11 +32,11 @@ beforeAll(async () => {
     { email: `addedmember${Date.now()}@boardtests.com`, password: 'pw' },
   ];
   for (const user of users) {
-    await request('http://auth:8000').post('/api/v1/users/').send(user);
+    await request(authServiceUrl).post('/api/v1/users/').send(user);
   }
   // Login and get tokens
   const login = async (email: string, password: string) => {
-    const res = await request('http://auth:8000').post('/api/v1/token').type('form').send({ username: email, password });
+    const res = await request(authServiceUrl).post('/api/v1/token').type('form').send({ username: email, password });
     return res.body.access_token;
   };
 
@@ -47,7 +49,7 @@ beforeAll(async () => {
 
   // Fetch user IDs
   const getUserId = async (token: string) => {
-    const res = await request('http://auth:8000')
+    const res = await request(authServiceUrl)
       .get('/api/v1/me')
       .set('Authorization', `Bearer ${token}`);
     return res.body.id;

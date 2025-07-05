@@ -3,6 +3,7 @@ import app from '../src/index';
 import prisma from '../src/prisma';
 
 let accessToken: string;
+const authServiceUrl = process.env.AUTH_SERVICE_URL || 'http://auth:8000';
 
 beforeAll(() => {
   jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -21,12 +22,12 @@ beforeAll(async () => {
   const email = `testuser${Date.now()}@boardtests.com`;
   const password = 'testpassword';
 
-  await request('http://auth:8000')
+  await request(authServiceUrl)
     .post('/api/v1/users/')
     .send({ email, password });
 
   // Login to get JWT
-  const loginRes = await request('http://auth:8000')
+  const loginRes = await request(authServiceUrl)
     .post('/api/v1/token')
     .type('form')
     .send({ username: email, password });
@@ -111,8 +112,8 @@ describe('Board API', () => {
     // Register and login as a second user
     const email = `otheruser${Date.now()}@boardtests.com`;
     const password = 'testpassword';
-    await request('http://auth:8000').post('/api/v1/users/').send({ email, password });
-    const loginRes = await request('http://auth:8000')
+    await request(authServiceUrl).post('/api/v1/users/').send({ email, password });
+    const loginRes = await request(authServiceUrl)
       .post('/api/v1/token')
       .type('form')
       .send({ username: email, password });

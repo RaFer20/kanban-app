@@ -1,0 +1,137 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, feature/**]
+  pull_request:
+
+jobs:
+  test-all-services:
+    runs-on: ubuntu-latest
+
+    services:
+      # Auth service database
+      auth-postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: test_authdb
+          POSTGRES_USER: kanban_user
+          POSTGRES_PASSWORD: kanban_pass
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      # Board service database  
+      board-postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: test_boarddb
+          POSTGRES_USER: kanban_user
+          POSTGRES_PASSWORD: kanban_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # Auth service environment
+      AUTH_DATABASE_URL: postgresql+asyncpg://kanban_user:kanban_pass@localhost:5433/test_authdb
+      AUTH_DATABASE_URL_SYNC: postgresql://kanban_user:kanban_pass@localhost:5433/test_authdb
+      SECRET_KEY: supersecretfortests
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      REFRESH_TOKEN_EXPIRE_MINUTES: 10080
+      GUEST_EMAIL: guest@example.com
+      GUEST_PASSWORD: guest123
+      
+      # Board service environment
+      DATABASE_URL: postgresql://kanban_user:kanban_pass@localhost:5432/test_boarddb
+      JWT_SECRET: supersecretfortests
+      AUTH_SERVICE_URL: http://localhost:8000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      # Set up auth service first
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install auth service dependencies
+        run: |
+          cd services/auth
+          poetry install
+
+      - name: Run auth database migrations
+        run: |
+          cd services/auth
+          export DATABASE_URL=$AUTH_DATABASE_URL
+          export DATABASE_URL_SYNC=$AUTH_DATABASE_URL_SYNC
+          export TEST_DATABASE_URL=$AUTH_DATABASE_URL
+          poetry run alembic upgrade head
+
+      - name: Run Auth Service tests
+        run: |
+          cd services/auth
+          export DATABASE_URL=$AUTH_DATABASE_URL
+          export DATABASE_URL_SYNC=$AUTH_DATABASE_URL_SYNC
+          export TEST_DATABASE_URL=$AUTH_DATABASE_URL
+          poetry run pytest tests/ -v
+
+      - name: Start auth service in background
+        run: |
+          cd services/auth
+          export DATABASE_URL=$AUTH_DATABASE_URL
+          export DATABASE_URL_SYNC=$AUTH_DATABASE_URL_SYNC
+          export TEST_DATABASE_URL=$AUTH_DATABASE_URL
+          poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          sleep 10
+          
+      - name: Seed auth service with guest user
+        run: |
+          cd services/auth
+          export DATABASE_URL=$AUTH_DATABASE_URL
+          export DATABASE_URL_SYNC=$AUTH_DATABASE_URL_SYNC
+          export TEST_DATABASE_URL=$AUTH_DATABASE_URL
+          poetry run python -m app.seeds
+
+      - name: Wait for auth service to be ready
+        run: |
+          echo "Checking if auth service is running..."
+          timeout 30 bash -c 'until curl -f http://localhost:8000/api/v1/health 2>/dev/null; do 
+            echo "Waiting for auth service..."; 
+            sleep 2; 
+          done'
+          echo "Auth service is ready!"
+
+      # Now set up and run board tests
+      - name: Install board service dependencies
+        run: |
+          cd services/board
+          npm install
+
+      - name: Run board database migrations
+        run: |
+          cd services/board
+          npx prisma migrate deploy
+
+      - name: Run board tests
+        run: |
+          cd services/board
+          npm test -- --runInBand
