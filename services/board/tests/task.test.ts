@@ -3,6 +3,7 @@ import app from '../src/index';
 import prisma from '../src/prisma';
 
 let accessToken: string;
+const authServiceUrl = process.env.AUTH_SERVICE_URL || 'http://auth:8000';
 
 // Suppress console.error during tests
 beforeAll(() => {
@@ -19,12 +20,12 @@ beforeAll(async () => {
   const email = `testuser${Date.now()}@boardtests.com`;
   const password = 'testpassword';
 
-  await request('http://auth:8000')
+  await request(authServiceUrl)
     .post('/api/v1/users/')
     .send({ email, password });
 
   // Login to get JWT
-  const loginRes = await request('http://auth:8000')
+  const loginRes = await request(authServiceUrl)
     .post('/api/v1/token')
     .type('form')
     .send({ username: email, password });
