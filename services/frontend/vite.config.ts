@@ -13,12 +13,12 @@ export default defineConfig({
   server: {
     proxy: {
       '/api/auth': {
-        target: 'http://localhost:8000',
+        target: 'http://auth:8000', // use service name, not localhost
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/auth/, ''),
       },
       '/api/board': {
-        target: 'http://localhost:3000',
+        target: 'http://board:3000', // use service name, not localhost
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/board/, ''),
       },
