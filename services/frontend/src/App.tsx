@@ -1,9 +1,10 @@
 import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom'
 import { useState, useEffect, createContext, useContext } from 'react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import './App.css'
+import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
+import { BoardsPage } from './pages/BoardsPage';
 
 // Auth Context for managing user state
 interface User {
@@ -115,82 +116,6 @@ function HomePage() {
   )
 }
 
-function LoginPage() {
-  const { login } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    
-    try {
-      await login(email, password);
-      // Redirect handled by AuthGuard
-    } catch (err) {
-      setError('Login failed. Please check your credentials.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="p-8 max-w-md mx-auto">
-      <div className="bg-card border border-border rounded-lg p-6 shadow-sm">
-        <h2 className="text-2xl font-bold mb-6 text-foreground">Login</h2>
-        {error && (
-          <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 text-destructive rounded-md text-sm">
-            {error}
-          </div>
-        )}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          <Button 
-            type="submit"
-            disabled={loading}
-            className="w-full"
-          >
-            {loading ? 'Logging in...' : 'Login'}
-          </Button>
-        </form>
-        <div className="mt-6 p-3 bg-muted rounded-md">
-          <p className="text-sm text-muted-foreground mb-1">Demo credentials:</p>
-          <p className="text-xs font-mono text-foreground">guest@example.com / guest123</p>
-        </div>
-        <div className="mt-4 text-center">
-          <Button variant="link" asChild>
-            <Link to="/">← Back to Home</Link>
-          </Button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // Auth Guard component
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -227,11 +152,13 @@ function App() {
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
               <Route path="/boards" element={
                 <AuthGuard>
                   <BoardsPage />
                 </AuthGuard>
               } />
+              <Route path="*" element={<CatchAllRedirect />} />
             </Routes>
           </main>
         </div>
@@ -247,7 +174,7 @@ function AuthHeader() {
   
   return (
     <div className="flex items-center space-x-4">
-      <span className="text-white">Welcome, {user.email}</span>
+      <span className="text-black">Welcome, {user.email}</span>
       <Button 
         variant="destructive"
         size="sm"
@@ -259,14 +186,11 @@ function AuthHeader() {
   );
 }
 
-// Placeholder Boards page
-function BoardsPage() {
-  return (
-    <div className="p-8">
-      <h2 className="text-2xl font-bold mb-4">Your Boards</h2>
-      <p>Board list coming soon...</p>
-    </div>
-  );
+function CatchAllRedirect() {
+  const { user, loading } = useAuth();
+  if (loading) return <div>Loading...</div>;
+  return <Navigate to={user ? "/boards" : "/login"} />;
 }
 
-export default App
+export { useAuth };
+export default App;
