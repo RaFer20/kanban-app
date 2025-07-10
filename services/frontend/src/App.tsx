@@ -30,7 +30,6 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Check if user is logged in on app start
     if (token) {
-      // FIX: Correct the endpoint - remove the extra "1"
       fetch('/api/auth/api/v1/me', {
         headers: { Authorization: `Bearer ${token}` }
       })
@@ -54,6 +53,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [token]);
 
   const login = async (email: string, password: string) => {
+    // 1. Request token from backend
     const response = await fetch('/api/auth/api/v1/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -67,9 +67,19 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const data = await response.json();
-    setToken(data.access_token);
-    setUser({ id: data.user_id || 1, email }); // Fallback user_id if not provided
-    localStorage.setItem('token', data.access_token);
+    const accessToken = data.access_token;
+    setToken(accessToken);
+    localStorage.setItem('token', accessToken);
+
+    // 2. Fetch user info from /me using the new token
+    const meRes = await fetch('/api/auth/api/v1/me', {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (!meRes.ok) {
+      throw new Error('Failed to fetch user info');
+    }
+    const userData = await meRes.json();
+    setUser(userData);
   };
 
   const logout = () => {
