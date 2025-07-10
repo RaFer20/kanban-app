@@ -6,8 +6,7 @@ Provides:
 - require_role: Dependency factory for role-based access control on endpoints.
 """
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import Request, Depends, HTTPException, status
 from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
@@ -17,17 +16,15 @@ from app.core.config import get_settings
 
 settings = get_settings()
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/token")
-
 async def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    db: AsyncSession = Depends(get_db),
+    request: Request,
+    db=Depends(get_db),
 ) -> User:
     """
     Dependency to retrieve the currently authenticated user from a JWT access token.
 
     Args:
-        token (str): The JWT access token, automatically extracted from the request.
+        request (Request): The HTTP request, used to extract the JWT access token from cookies.
         db (AsyncSession): The database session.
 
     Returns:
@@ -36,23 +33,20 @@ async def get_current_user(
     Raises:
         HTTPException: If the token is invalid, expired, or the user does not exist.
     """
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-
+    token = request.cookies.get("access_token")
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
-        user_id = payload.get("sub")
-        if not isinstance(user_id, str) or not user_id.isdigit():
-            raise credentials_exception
+        sub = payload.get("sub")
+        if sub is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token: missing subject")
+        user_id = int(sub)
     except JWTError:
-        raise credentials_exception
-
-    user = await db.get(User, int(user_id))
-    if user is None:
-        raise credentials_exception
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     return user
 
 def require_role(*allowed_roles: str):

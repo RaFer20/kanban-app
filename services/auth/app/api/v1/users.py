@@ -66,6 +66,7 @@ async def register_user(
 @limiter.limit("40/minute")  # 40 login attempts per minute per IP
 async def login_user(
     request: Request,
+    response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
 ) -> Token:
@@ -121,6 +122,27 @@ async def login_user(
     await db.commit()
 
     logger.info(f"User logged in successfully: {user.email} (ID: {user.id}), JTI: {jti}")
+
+    # Set cookies
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=settings.env == "production",
+        samesite="lax",
+        max_age=int(settings.access_token_expire_minutes * 60),
+        path="/",
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=settings.env == "production",
+        samesite="lax",
+        max_age=int(settings.refresh_token_expire_minutes * 60),
+        path="/api/auth/api/v1/refresh",  # restrict path if you want
+    )
+
     return Token(
         access_token=access_token,
         refresh_token=refresh_token,
@@ -147,6 +169,7 @@ async def read_current_user(current_user: User = Depends(get_current_user)):
 @limiter.limit("100/minute")  # 100 refreshes per minute per IP
 async def refresh_access_token(
     request: Request,
+    response: Response,
     refresh_token: str = Body(..., embed=True),
     db: AsyncSession = Depends(get_db),
 ) -> Token:
@@ -249,6 +272,27 @@ async def refresh_access_token(
 
         logger.info(f"Refresh token rotated successfully for user ID {user_id}, new JTI: {new_jti}")
         refresh_token_usage_counter.labels(method="refresh").inc()
+
+        # Set cookies for new tokens
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=int(settings.access_token_expire_minutes * 60),
+            path="/",
+        )
+        response.set_cookie(
+            key="refresh_token",
+            value=new_refresh_token,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=int(settings.refresh_token_expire_minutes * 60),
+            path="/api/auth/api/v1/refresh",
+        )
+
         return Token(
             access_token=access_token,
             refresh_token=new_refresh_token,
@@ -264,6 +308,7 @@ async def refresh_access_token(
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, tags=["auth"])
 async def logout_user(
+    response: Response,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
@@ -280,6 +325,11 @@ async def logout_user(
     logger.info(f"Logging out user ID {current_user.id}, email {current_user.email}")
     await auth_service.revoke_refresh_token(db, current_user)
     logger.info(f"User ID {current_user.id} logged out successfully")
+
+    # Clear cookies
+    response.delete_cookie("access_token", path="/")
+    response.delete_cookie("refresh_token", path="/api/auth/api/v1/refresh")
+
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

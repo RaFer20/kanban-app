@@ -1,26 +1,25 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import path from 'path'
+import { fileURLToPath, URL } from 'node:url'
 
-// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
   server: {
     proxy: {
-      '/api/auth': {
-        target: 'http://auth:8000', // use service name, not localhost
+      '/api/v1': {
+        target: 'http://auth:8000',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/auth/, ''),
+        secure: false,
       },
       '/api/board': {
-        target: 'http://board:3000', // use service name, not localhost
+        target: 'http://board:3000',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/board/, ''),
+        secure: false,
       },
     },
   },
