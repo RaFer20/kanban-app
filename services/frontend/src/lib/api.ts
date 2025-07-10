@@ -16,23 +16,20 @@ async function apiRequest<T>(
   endpoint: string, 
   options: RequestInit = {}
 ): Promise<T> {
-  const token = localStorage.getItem('token');
-  
+  // Remove token logic
   const config: RequestInit = {
     headers: {
       'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
       ...options.headers,
     },
+    credentials: 'include',
     ...options,
   };
 
   const response = await fetch(`${API_BASE}${endpoint}`, config);
-  
   if (!response.ok) {
     throw new ApiError(response.status, `HTTP error! status: ${response.status}`);
   }
-  
   return response.json();
 }
 
@@ -42,8 +39,8 @@ export const authApi = {
     const formData = new URLSearchParams();
     formData.append('username', email);
     formData.append('password', password);
-    
-    return apiRequest<{ access_token: string; user_id?: number }>('/api/auth/api/v1/token', {
+
+    return apiRequest<{ access_token: string; user_id?: number }>('/api/v1/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: formData,
@@ -51,11 +48,11 @@ export const authApi = {
   },
 
   async getMe() {
-    return apiRequest<{ id: number; email: string; is_active: boolean }>('/api/auth/api/v1/me');
+    return apiRequest<{ id: number; email: string; is_active: boolean }>('/api/v1/me');
   },
 
   async register(email: string, password: string) {
-    return apiRequest<{ id: number; email: string }>('/api/auth/api/v1/users/', {
+    return apiRequest<{ id: number; email: string }>('/api/v1/users/', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });

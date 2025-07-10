@@ -24,40 +24,37 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
 
+  // Check if user is logged in on app start
   useEffect(() => {
-    // Check if user is logged in on app start
-    if (token) {
-      fetch('/api/auth/api/v1/me', {
-        headers: { Authorization: `Bearer ${token}` }
+    fetch('/api/v1/me', {
+      credentials: 'include', // <-- Send cookies!
+    })
+      .then(res => {
+        if (!res.ok) throw new Error('Not authenticated');
+        return res.json();
       })
-      .then(res => res.json())
       .then(userData => {
         if (userData.id) {
           setUser(userData);
         } else {
-          localStorage.removeItem('token');
-          setToken(null);
+          setUser(null);
         }
       })
       .catch(() => {
-        localStorage.removeItem('token');
-        setToken(null);
+        setUser(null);
       })
       .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
-  }, [token]);
+  }, []);
 
   const login = async (email: string, password: string) => {
-    // 1. Request token from backend
-    const response = await fetch('/api/auth/api/v1/token', {
+    // 1. Request token from backend (cookies will be set by backend)
+    const response = await fetch('/api/v1/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ username: email, password })
+      body: new URLSearchParams({ username: email, password }),
+      credentials: 'include',
     });
 
     if (!response.ok) {
@@ -66,14 +63,9 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error('Login failed');
     }
 
-    const data = await response.json();
-    const accessToken = data.access_token;
-    setToken(accessToken);
-    localStorage.setItem('token', accessToken);
-
-    // 2. Fetch user info from /me using the new token
-    const meRes = await fetch('/api/auth/api/v1/me', {
-      headers: { Authorization: `Bearer ${accessToken}` }
+    // 2. Fetch user info from /me (cookies will be sent automatically)
+    const meRes = await fetch('/api/v1/me', {
+      credentials: 'include',
     });
     if (!meRes.ok) {
       throw new Error('Failed to fetch user info');
@@ -82,14 +74,16 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(userData);
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await fetch('/api/v1/logout', {
+      method: 'POST',
+      credentials: 'include',
+    });
     setUser(null);
-    setToken(null);
-    localStorage.removeItem('token');
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, token: null, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );
