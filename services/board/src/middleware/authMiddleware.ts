@@ -15,12 +15,18 @@ export function authenticateJWT(
   res: Response,
   next: NextFunction
 ): void {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    res.status(401).json({ error: "Missing or invalid Authorization header" });
+  // Try to get token from cookie first
+  let token = req.cookies.access_token;
+
+  // If not found, try Authorization header (for legacy/test clients)
+  if (!token && req.headers.authorization?.startsWith("Bearer ")) {
+    token = req.headers.authorization.slice(7);
+  }
+
+  if (!token) {
+    res.status(401).json({ error: "Unauthorized" });
     return;
   }
-  const token = authHeader.split(" ")[1];
   try {
     const payload = jwt.verify(token, JWT_SECRET as string) as any;
     req.user = { id: Number(payload.sub), email: payload.email, role: payload.role };

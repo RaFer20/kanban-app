@@ -64,12 +64,16 @@ export async function addBoardMemberHandler(
     return;
   }
   const requesterRole = await getUserRoleForBoard(boardId, requesterId);
-  if (!requesterRole) {
+  if (requesterRole == null) {
     req.log?.warn({ requesterId, boardId }, 'No role found for add member');
     res.status(404).json({ error: "Board not found" });
     return;
   }
   if (!requireRole(['OWNER'], requesterRole, res)) return;
+  if (!userId) {
+    res.status(400).json({ error: "Missing userId" });
+    return;
+  }
   try {
     const membership = await addBoardMember(boardId, userId, role);
     req.log?.info({ requesterId, boardId, addedUserId: userId, role }, 'Board member added');
@@ -113,12 +117,16 @@ export async function listBoardMembersHandler(
     return;
   }
   const role = await getUserRoleForBoard(boardId, userId);
-  if (!role) {
-    req.log?.warn({ userId, boardId }, 'No role found for list members');
-    res.status(403).json({ error: "Forbidden" });
+  if (role == null) {
+    req.log?.warn({ userId, boardId }, 'No role found for listBoardMembers');
+    res.status(404).json({ error: 'Board not found' });
     return;
   }
-  if (!requireRole(['OWNER', 'EDITOR', 'VIEWER'], role, res)) return;
+  if (!['OWNER', 'EDITOR'].includes(role)) {
+    req.log?.warn({ userId, boardId, role }, 'Forbidden: insufficient role for listBoardMembers');
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
   try {
     const members = await prisma.boardMembership.findMany({
       where: { boardId },
@@ -173,7 +181,7 @@ export async function removeBoardMemberHandler(
     return;
   }
   const requesterRole = await getUserRoleForBoard(boardId, requesterId);
-  if (!requesterRole) {
+  if (requesterRole == null) {
     req.log?.warn({ requesterId, boardId }, 'No role found for remove member');
     res.status(404).json({ error: "Board not found" });
     return;
@@ -242,7 +250,7 @@ export async function updateBoardMemberRoleHandler(
     return;
   }
   const requesterRole = await getUserRoleForBoard(boardId, requesterId);
-  if (!requesterRole) {
+  if (requesterRole == null) {
     req.log?.warn({ requesterId, boardId }, 'No role found for update member role');
     res.status(403).json({ error: "Forbidden" });
     return;
@@ -255,8 +263,14 @@ export async function updateBoardMemberRoleHandler(
     });
     req.log?.info({ requesterId, boardId, memberId, newRole: role }, 'Board member role updated');
     res.json(updated);
-  } catch (error) {
+  } catch (error: any) {
     req.log?.error({ err: error, requesterId, boardId, memberId, newRole: role }, 'Failed to update board member role');
-    res.status(404).json({ error: "Member not found" });
+    if (error?.code === 'P2025') {
+      res.status(404).json({ error: "Member not found" });
+    } else if (error?.name === 'ValidationError') {
+      res.status(400).json({ error: "Invalid role or input" });
+    } else {
+      res.status(500).json({ error: "Internal server error" });
+    }
   }
 }
