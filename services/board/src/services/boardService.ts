@@ -237,7 +237,11 @@ export async function deleteTask(taskId: number) {
  */
 export async function addBoardMember(boardId: number, userId: number, role: 'OWNER' | 'EDITOR' | 'VIEWER') {
   return prisma.boardMembership.create({
-    data: { boardId, userId, role },
+    data: {
+      boardId,
+      userId,
+      role,
+    },
   });
 }
 

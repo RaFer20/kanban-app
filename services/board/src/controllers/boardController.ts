@@ -159,13 +159,14 @@ export async function deleteBoardHandler(
     return;
   }
   const role = await getUserRoleForBoard(boardId, userId);
-  if (!role) {
+  if (role == null) {
     req.log?.warn({ userId, boardId }, 'User not a member of board for delete');
     res.status(404).json({ error: "Board not found" });
     return;
   }
-  if (!requireRole(['OWNER'], role, res)) {
+  if (!['OWNER'].includes(role)) {
     req.log?.warn({ userId, boardId, role }, 'Insufficient role for board delete');
+    res.status(403).json({ error: "Forbidden" });
     return;
   }
   try {

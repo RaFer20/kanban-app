@@ -2,7 +2,6 @@ import { Request, Response } from 'express';
 import { createColumn, getColumnsForBoard, updateColumn, deleteColumn, getUserRoleForBoard } from '../services/boardService';
 import { createColumnSchema, updateColumnSchema } from "../schemas/columnSchema";
 import { AuthenticatedRequest } from "../types/express";
-import { requireRole } from "../utils/requireRole";
 import prisma from '../prisma';
 import { logger } from '../logger';
 import { ensureBoardActive, ensureColumnActive } from '../utils/entityChecks';
@@ -47,7 +46,7 @@ import { ensureBoardActive, ensureColumnActive } from '../utils/entityChecks';
  *         description: Forbidden
  */
 export async function createColumnHandler(
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response
 ): Promise<void> {
   const parseResult = createColumnSchema.safeParse(req.body);
@@ -76,12 +75,18 @@ export async function createColumnHandler(
     return;
   }
   const role = await getUserRoleForBoard(boardIdNum, userId);
-  if (!role) {
+  if (role == null) {
+    // Not a member: hide existence
     req.log?.warn({ userId, boardId: boardIdNum }, 'No role found for createColumn');
     res.status(404).json({ error: 'Board not found' });
     return;
   }
-  if (!requireRole(['OWNER', 'EDITOR'], role, res)) return;
+  // Member but not allowed: return 403
+  if (!['OWNER', 'EDITOR'].includes(role)) {
+    req.log?.warn({ userId, boardId: boardIdNum, role }, 'Forbidden: insufficient role for createColumn');
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
   try {
     const column = await createColumn(parseResult.data.name, boardIdNum);
     req.log?.info({ userId, boardId: boardIdNum, columnId: column.id }, 'Column created');
@@ -135,12 +140,17 @@ export async function getColumnsForBoardHandler(
     return;
   }
   const role = await getUserRoleForBoard(boardIdNum, userId);
-  if (!role) {
+  if (role == null) {
     req.log?.warn({ userId, boardId: boardIdNum }, 'No role found for getColumns');
     res.status(404).json({ error: 'Board not found' });
     return;
   }
-  if (!requireRole(['OWNER', 'EDITOR', 'VIEWER'], role, res)) return;
+  // Member but not allowed: return 403 (shouldn't happen for listing, but for completeness)
+  if (!['OWNER', 'EDITOR', 'VIEWER'].includes(role)) {
+    req.log?.warn({ userId, boardId: boardIdNum, role }, 'Forbidden: insufficient role for getColumns');
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
   try {
     const columns = await getColumnsForBoard(boardIdNum);
     req.log?.info({ userId, boardId: boardIdNum }, 'Listed columns for board');
@@ -215,12 +225,17 @@ export async function updateColumnHandler(req: Request, res: Response): Promise<
     return;
   }
   const role = await getUserRoleForBoard(column.boardId, userId);
-  if (!role) {
+  if (role == null) {
     req.log?.warn({ userId, columnId: columnIdNum }, 'No role found for updateColumn');
     res.status(404).json({ error: 'Column not found' });
     return;
   }
-  if (!requireRole(['OWNER', 'EDITOR'], role, res)) return;
+  // Member but not allowed: return 403
+  if (!['OWNER', 'EDITOR'].includes(role)) {
+    req.log?.warn({ userId, columnId: columnIdNum, role }, 'Forbidden: insufficient role for updateColumn');
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
   try {
     const updatedColumn = await updateColumn(columnIdNum, parseResult.data);
     req.log?.info({ userId, boardId: column.boardId, columnId: columnIdNum }, 'Column updated');
@@ -283,12 +298,17 @@ export async function deleteColumnHandler(req: Request, res: Response): Promise<
     return;
   }
   const role = await getUserRoleForBoard(column.boardId, userId);
-  if (!role) {
+  if (role == null) {
     req.log?.warn({ userId, columnId: columnIdNum }, 'No role found for deleteColumn');
     res.status(404).json({ error: 'Column not found' });
     return;
   }
-  if (!requireRole(['OWNER', 'EDITOR'], role, res)) return;
+  // Member but not allowed: return 403
+  if (!['OWNER', 'EDITOR'].includes(role)) {
+    req.log?.warn({ userId, columnId: columnIdNum, role }, 'Forbidden: insufficient role for deleteColumn');
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
   try {
     await deleteColumn(columnIdNum);
     req.log?.info({ userId, boardId: column.boardId, columnId: columnIdNum }, 'Column deleted');
