@@ -147,13 +147,12 @@ services:
       - board
 
   nginx:
-    image: nginx:1.25
+    build:
+      context: ./services/frontend
+      dockerfile: Dockerfile
     container_name: nginx
     ports:
       - "80:80"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./services/frontend/dist:/usr/share/nginx/html:ro
     depends_on:
       - auth
       - board
