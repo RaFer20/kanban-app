@@ -329,8 +329,8 @@ async def logout_user(
     # Clear cookies
     response.delete_cookie("access_token", path="/")
     response.delete_cookie("refresh_token", path="/api/auth/api/v1/refresh")
-
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    response.status_code = status.HTTP_204_NO_CONTENT
+    return response
 
 
 @router.get("/admin-only", tags=["admin"])

@@ -5,6 +5,7 @@ import './App.css'
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { BoardsPage } from './pages/BoardsPage';
+import { authApi } from './lib/api';
 
 // Auth Context for managing user state
 interface User {
@@ -18,6 +19,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   loading: boolean;
+  register: (email: string, password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -28,23 +30,23 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Check if user is logged in on app start
   useEffect(() => {
-    fetch('/api/v1/me', {
-      credentials: 'include', // <-- Send cookies!
-    })
+    fetch('/api/v1/me', { credentials: 'include' })
       .then(res => {
+        if (res.status === 204 || res.status === 401) {
+          setUser(null);
+          return null;
+        }
         if (!res.ok) throw new Error('Not authenticated');
         return res.json();
       })
       .then(userData => {
-        if (userData.id) {
+        if (userData && userData.id) {
           setUser(userData);
         } else {
           setUser(null);
         }
       })
-      .catch(() => {
-        setUser(null);
-      })
+      .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);
 
@@ -75,15 +77,28 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    await fetch('/api/v1/logout', {
-      method: 'POST',
-      credentials: 'include',
-    });
+    try {
+      await authApi.logout();
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
     setUser(null);
   };
 
+  const register = async (email: string, password: string) => {
+    const response = await fetch('/api/v1/users/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      throw new Error('Registration failed');
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token: null, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, token: null, login, logout, loading, register }}>
       {children}
     </AuthContext.Provider>
   );

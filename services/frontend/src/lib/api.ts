@@ -16,7 +16,6 @@ async function apiRequest<T>(
   endpoint: string, 
   options: RequestInit = {}
 ): Promise<T> {
-  // Remove token logic
   const config: RequestInit = {
     headers: {
       'Content-Type': 'application/json',
@@ -29,6 +28,10 @@ async function apiRequest<T>(
   const response = await fetch(`${API_BASE}${endpoint}`, config);
   if (!response.ok) {
     throw new ApiError(response.status, `HTTP error! status: ${response.status}`);
+  }
+  if (response.status === 204) {
+    // No content to parse
+    return undefined as T;
   }
   return response.json();
 }
@@ -56,6 +59,19 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
+  },
+
+  async logout() {
+    // No body needed, just POST to logout endpoint
+    const response = await fetch('/api/v1/logout', {
+      method: 'POST',
+      credentials: 'include',
+    });
+    if (!response.ok && response.status !== 204) {
+      throw new ApiError(response.status, 'Logout failed');
+    }
+    // No JSON to parse for 204 response
+    return;
   },
 };
 
