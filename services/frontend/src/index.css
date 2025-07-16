@@ -134,6 +134,10 @@ a:hover {
   color: oklch(var(--primary) / 0.8);
 }
 
+.input-visible-border {
+  border: 1px solid #696969 !important;
+}
+
 /* For light mode compatibility */
 @media (prefers-color-scheme: light) {
   :root {
