@@ -64,7 +64,7 @@ export function RegisterPage() {
         <input
           type="email"
           placeholder="Email"
-          className="w-full p-2 mb-4 border-2 border-gray-300 rounded shadow-md focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition"
+          className="input-visible-border w-full p-2 mb-4 rounded shadow-md focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition"
           value={email}
           onChange={e => setEmail(e.target.value)}
           required
@@ -72,7 +72,7 @@ export function RegisterPage() {
         <input
           type="password"
           placeholder="Password (min 8 chars)"
-          className="w-full p-2 mb-4 border-2 border-gray-300 rounded shadow-md focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition"
+          className="input-visible-border w-full p-2 mb-4 rounded shadow-md focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition"
           value={password}
           onChange={e => setPassword(e.target.value)}
           required
@@ -80,7 +80,7 @@ export function RegisterPage() {
         <input
           type="password"
           placeholder="Confirm Password"
-          className="w-full p-2 mb-6 border-2 border-gray-300 rounded shadow-md focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition"
+          className="input-visible-border w-full p-2 mb-6 rounded shadow-md focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition"
           value={confirmPassword}
           onChange={e => setConfirmPassword(e.target.value)}
           required

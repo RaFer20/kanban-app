@@ -20,6 +20,7 @@ export default defineConfig({
         target: 'http://board:3000',
         changeOrigin: true,
         secure: false,
+        rewrite: path => path.replace(/^\/api\/board/, '/api'),
       },
     },
   },

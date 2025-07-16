@@ -83,18 +83,18 @@ export const boardApi = {
       total: number;
       limit: number;
       offset: number;
-    }>(`/api/board/api/boards?limit=${limit}&offset=${offset}`);
+    }>(`/api/board/boards?limit=${limit}&offset=${offset}`);
   },
 
   async createBoard(name: string) {
-    return apiRequest<{ id: number; name: string; createdAt: string; updatedAt: string }>('/api/board/api/boards', {
+    return apiRequest<{ id: number; name: string; createdAt: string; updatedAt: string }>('/api/board/boards', {
       method: 'POST',
       body: JSON.stringify({ name }),
     });
   },
 
   async getBoard(boardId: number) {
-    return apiRequest(`/api/board/api/boards/${boardId}`);
+    return apiRequest(`/api/board/boards/${boardId}`);
   },
 
   async getBoardColumns(boardId: number) {
@@ -103,7 +103,7 @@ export const boardApi = {
       name: string;
       order: number;
       tasks: Array<{ id: number; title: string; order: number }>;
-    }>>(`/api/board/api/boards/${boardId}/columns`);
+    }>>(`/api/board/boards/${boardId}/columns`);
   },
 };
 
