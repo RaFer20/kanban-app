@@ -3,6 +3,7 @@ import {
   createBoardHandler,
   deleteBoardHandler,
   getBoardsPaginatedHandler,
+  getBoardHandler,
 } from '../controllers/boardController';
 import {
   createColumnHandler,
@@ -27,6 +28,7 @@ const router = Router();
 
 router.post('/boards', createBoardHandler);
 router.get('/boards', getBoardsPaginatedHandler);
+router.get('/boards/:boardId', getBoardHandler);
 router.delete('/boards/:boardId', deleteBoardHandler);
 
 router.post('/boards/:boardId/columns', createColumnHandler);

@@ -178,3 +178,45 @@ export async function deleteBoardHandler(
     res.status(500).json({ error: 'Failed to delete board' });
   }
 }
+
+/**
+ * @openapi
+ * /api/boards/{boardId}:
+ *   get:
+ *     summary: Get a specific board by ID
+ *     parameters:
+ *       - in: path
+ *         name: boardId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Board details
+ *       404:
+ *         description: Board not found
+ *       401:
+ *         description: Unauthorized
+ */
+export async function getBoardHandler(
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> {
+  const boardId = Number(req.params.boardId);
+  const userId = req.user?.id;
+  if (typeof userId !== 'number') {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const board = await ensureBoardActive(boardId);
+  if (!board) {
+    res.status(404).json({ error: "Board not found" });
+    return;
+  }
+  const role = await getUserRoleForBoard(boardId, userId);
+  if (role == null) {
+    res.status(404).json({ error: "Board not found" });
+    return;
+  }
+  res.json(board);
+}
