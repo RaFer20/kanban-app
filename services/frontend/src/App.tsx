@@ -5,6 +5,7 @@ import './App.css'
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { BoardsPage } from './pages/BoardsPage';
+import { BoardDetailPage } from './pages/BoardDetailPage';
 import { authApi } from './lib/api';
 
 // Auth Context for managing user state
@@ -177,6 +178,7 @@ function App() {
                   <BoardsPage />
                 </AuthGuard>
               } />
+              <Route path="/boards/:boardId" element={<BoardDetailPage />} />
               <Route path="*" element={<CatchAllRedirect />} />
             </Routes>
           </main>

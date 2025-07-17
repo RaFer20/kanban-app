@@ -94,16 +94,20 @@ export const boardApi = {
   },
 
   async getBoard(boardId: number) {
-    return apiRequest(`/api/board/boards/${boardId}`);
+    return apiRequest<{
+      id: number;
+      name: string;
+      createdAt: string;
+      updatedAt: string;
+    }>(`/api/board/boards/${boardId}`); // <-- FIXED
   },
-
   async getBoardColumns(boardId: number) {
     return apiRequest<Array<{
       id: number;
       name: string;
       order: number;
       tasks: Array<{ id: number; title: string; order: number }>;
-    }>>(`/api/board/boards/${boardId}/columns`);
+    }>>(`/api/board/boards/${boardId}/columns`); // <-- FIXED
   },
 };
 
