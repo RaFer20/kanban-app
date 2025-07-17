@@ -30,7 +30,6 @@ async function apiRequest<T>(
     throw new ApiError(response.status, `HTTP error! status: ${response.status}`);
   }
   if (response.status === 204) {
-    // No content to parse
     return undefined as T;
   }
   return response.json();
@@ -62,7 +61,6 @@ export const authApi = {
   },
 
   async logout() {
-    // No body needed, just POST to logout endpoint
     const response = await fetch('/api/v1/logout', {
       method: 'POST',
       credentials: 'include',
@@ -70,7 +68,6 @@ export const authApi = {
     if (!response.ok && response.status !== 204) {
       throw new ApiError(response.status, 'Logout failed');
     }
-    // No JSON to parse for 204 response
     return;
   },
 };
@@ -99,7 +96,7 @@ export const boardApi = {
       name: string;
       createdAt: string;
       updatedAt: string;
-    }>(`/api/board/boards/${boardId}`); // <-- FIXED
+    }>(`/api/board/boards/${boardId}`);
   },
   async getBoardColumns(boardId: number) {
     return apiRequest<Array<{
@@ -107,7 +104,25 @@ export const boardApi = {
       name: string;
       order: number;
       tasks: Array<{ id: number; title: string; order: number }>;
-    }>>(`/api/board/boards/${boardId}/columns`); // <-- FIXED
+    }>>(`/api/board/boards/${boardId}/columns`);
+  },
+  async createColumn(boardId: number, name: string) {
+    return apiRequest<{ id: number; name: string; order: number; boardId: number }>(
+      `/api/board/boards/${boardId}/columns`,
+      {
+        method: "POST",
+        body: JSON.stringify({ name }),
+      }
+    );
+  },
+  async createTask(columnId: number, title: string, description?: string) {
+    return apiRequest<{ id: number; title: string; description?: string; order: number; columnId: number }>(
+      `/api/board/columns/${columnId}/tasks`,
+      {
+        method: "POST",
+        body: JSON.stringify({ title, description }),
+      }
+    );
   },
 };
 
