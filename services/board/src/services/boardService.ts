@@ -120,6 +120,17 @@ export async function getColumnsForBoard(boardId: number) {
   return prisma.column.findMany({
     where: { boardId, deletedAt: null },
     orderBy: { order: 'asc' },
+    include: {
+      tasks: {
+        where: { deletedAt: null },
+        orderBy: { order: 'asc' },
+        select: {
+          id: true,
+          title: true,
+          order: true,
+        }
+      }
+    }
   });
 }
 
