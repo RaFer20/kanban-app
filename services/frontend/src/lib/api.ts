@@ -124,6 +124,42 @@ export const boardApi = {
       }
     );
   },
+  async updateColumn(columnId: number, data: { name?: string; order?: number }) {
+    return apiRequest<{ id: number; name: string; order: number }>(
+      `/api/board/columns/${columnId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }
+    );
+  },
+
+  async deleteColumn(columnId: number) {
+    return apiRequest<{ message: string }>(
+      `/api/board/columns/${columnId}`,
+      {
+        method: "DELETE",
+      }
+    );
+  },
+  async updateTask(taskId: number, data: { title?: string; description?: string }) {
+    return apiRequest<{ id: number; title: string; description?: string }>(
+      `/api/board/tasks/${taskId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }
+    );
+  },
+
+  async deleteTask(taskId: number) {
+    return apiRequest<{ message: string }>(
+      `/api/board/tasks/${taskId}`,
+      {
+        method: "DELETE",
+      }
+    );
+  },
 };
 
 export { ApiError };
