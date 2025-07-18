@@ -155,7 +155,7 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen">
           <header className="bg-primary text-primary-foreground shadow-sm border-b border-border">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex justify-between items-center h-16">
@@ -178,7 +178,11 @@ function App() {
                   <BoardsPage />
                 </AuthGuard>
               } />
-              <Route path="/boards/:boardId" element={<BoardDetailPage />} />
+              <Route path="/boards/:boardId" element={
+                  <AuthGuard>
+                    <BoardDetailPage />
+                  </AuthGuard>
+              } />
               <Route path="*" element={<CatchAllRedirect />} />
             </Routes>
           </main>

@@ -128,6 +128,7 @@ export async function getColumnsForBoard(boardId: number) {
           id: true,
           title: true,
           order: true,
+          description: true,
         }
       }
     }
