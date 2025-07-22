@@ -2,6 +2,22 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { boardApi } from "../lib/api";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  verticalListSortingStrategy,
+  horizontalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { useDroppable, useDraggable } from "@dnd-kit/core";
 
 type Board = {
   id: number;
@@ -77,78 +93,178 @@ export function BoardDetailPage() {
     }
   }
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+
+  // Helper: get all task IDs in order for a column
+  function getTaskIds(column: Column) {
+    return [...column.tasks]
+      .sort((a, b) => a.order - b.order)
+      .map(t => t.id.toString());
+  }
+
+  // Handler for drag end
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over) return;
+
+    // Find source and destination column/task
+    const sourceCol = columns.find(col =>
+      col.tasks.some(t => t.id.toString() === active.id)
+    );
+    const destCol = columns.find(
+      col =>
+        col.id.toString() === over.data?.current?.columnId ||
+        col.tasks.some(t => t.id.toString() === over.id)
+    );
+
+    if (!sourceCol || !destCol) return;
+
+    // If dropped in the same column, reorder
+    if (sourceCol.id === destCol.id) {
+      const oldIndex = sourceCol.tasks.findIndex(
+        t => t.id.toString() === active.id
+      );
+      const newIndex = destCol.tasks.findIndex(
+        t => t.id.toString() === over.id
+      );
+
+      if (oldIndex !== newIndex) {
+        const newTasks = arrayMove(sourceCol.tasks, oldIndex, newIndex);
+        // Update order in backend for all affected tasks
+        for (let i = 0; i < newTasks.length; i++) {
+          if (newTasks[i].order !== i + 1) {
+            await boardApi.updateTask(newTasks[i].id, { order: i + 1 });
+          }
+        }
+        await fetchColumns();
+      }
+    } else {
+      // Move to another column
+      const task = sourceCol.tasks.find(t => t.id.toString() === active.id);
+      if (task) {
+        // Place at end of dest column
+        await boardApi.updateTask(task.id, {
+          columnId: destCol.id,
+          order: destCol.tasks.length + 1,
+        });
+        await fetchColumns();
+      }
+    }
+  }
+
   if (loading) return <div className="p-8">Loading board...</div>;
   if (error) return <div className="p-8 text-red-600">{error}</div>;
   if (!board) return <div className="p-8">Board not found.</div>;
 
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold mb-4">{board.name}</h1>
-      <button
-        className="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        onClick={() => setShowAddColumn(true)}
-      >
-        + Add Column
-      </button>
-      <SimpleModal open={showAddColumn} onClose={() => setShowAddColumn(false)}>
-        <form onSubmit={handleAddColumn} className="flex flex-col gap-4">
-          <h2 className="text-xl font-bold mb-2">Create Column</h2>
-          <input
-            type="text"
-            placeholder="Column name"
-            value={newColumnName}
-            onChange={e => setNewColumnName(e.target.value)}
-            className="w-full p-2 border rounded"
-            required
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="p-8">
+        <h1 className="text-2xl font-bold mb-4">{board.name}</h1>
+        <button
+          className="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          onClick={() => setShowAddColumn(true)}
+        >
+          + Add Column
+        </button>
+        <SimpleModal
+          open={showAddColumn}
+          onClose={() => setShowAddColumn(false)}
+        >
+          <form
+            onSubmit={handleAddColumn}
+            className="flex flex-col gap-4"
+          >
+            <h2 className="text-xl font-bold mb-2">Create Column</h2>
+            <input
+              type="text"
+              placeholder="Column name"
+              value={newColumnName}
+              onChange={e => setNewColumnName(e.target.value)}
+              className="w-full p-2 border rounded"
+              required
+            />
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                className="bg-blue-500 text-white px-4 py-2 rounded"
+              >
+                Add
+              </button>
+              <button
+                type="button"
+                className="px-4 py-2"
+                onClick={() => setShowAddColumn(false)}
+              >
+                Cancel
+              </button>
+            </div>
+            {addColumnError && (
+              <div className="text-red-600">{addColumnError}</div>
+            )}
+          </form>
+        </SimpleModal>
+        <div className="flex gap-4">
+          {columns.map(col => (
+            <SortableContext
+              key={col.id}
+              id={col.id.toString()}
+              items={getTaskIds(col)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="bg-gray-200 rounded-lg p-4 min-w-[220px]">
+                <h2 className="font-semibold mb-2 flex justify-between items-center">
+                  <span>{col.name}</span>
+                  <ColumnActions column={col} onChanged={fetchColumns} />
+                </h2>
+                <ul className="space-y-2">
+                  {col.tasks && col.tasks.length > 0 ? (
+                    col.tasks
+                      .sort((a, b) => a.order - b.order)
+                      .map(task => (
+                        <DraggableTask
+                          key={task.id}
+                          task={task}
+                          columnId={col.id}
+                          onClick={() => {
+                            setSelectedTask(task);
+                            setShowTaskModal(true);
+                          }}
+                        />
+                      ))
+                  ) : (
+                    <li className="text-gray-500">No tasks</li>
+                  )}
+                </ul>
+                <AddTaskForm columnId={col.id} onTaskAdded={fetchColumns} />
+              </div>
+            </SortableContext>
+          ))}
+        </div>
+        {showTaskModal && selectedTask && (
+          <TaskModal
+            task={selectedTask}
+            onClose={() => setShowTaskModal(false)}
+            onChanged={fetchColumns}
           />
-          <div className="flex gap-2">
-            <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">Add</button>
-            <button type="button" className="px-4 py-2" onClick={() => setShowAddColumn(false)}>Cancel</button>
-          </div>
-          {addColumnError && <div className="text-red-600">{addColumnError}</div>}
-        </form>
-      </SimpleModal>
-      <div className="flex gap-4">
-        {columns.map(col => (
-          <div key={col.id} className="bg-gray-200 rounded-lg p-4 min-w-[220px]">
-            <h2 className="font-semibold mb-2 flex justify-between items-center">
-              <span>{col.name}</span>
-              <ColumnActions column={col} onChanged={fetchColumns} />
-            </h2>
-            <ul className="space-y-2">
-              {col.tasks && col.tasks.length > 0 ? (
-                col.tasks.map(task => (
-                  <li
-                    key={task.id}
-                    className="bg-white rounded-md shadow p-3 text-left cursor-pointer"
-                    onClick={() => {
-                      setSelectedTask(task);
-                      setShowTaskModal(true);
-                    }}
-                  >
-                    <span>{task.title}</span>
-                  </li>
-                ))
-              ) : (
-                <li className="text-gray-500">No tasks</li>
-              )}
-            </ul>
-            <AddTaskForm columnId={col.id} onTaskAdded={fetchColumns} />
-          </div>
-        ))}
+        )}
       </div>
-      {showTaskModal && selectedTask && (
-        <TaskModal
-          task={selectedTask}
-          onClose={() => setShowTaskModal(false)}
-          onChanged={fetchColumns}
-        />
-      )}
-    </div>
+    </DndContext>
   );
 }
 
-function AddTaskForm({ columnId, onTaskAdded }: { columnId: number; onTaskAdded: () => void }) {
+function AddTaskForm({
+  columnId,
+  onTaskAdded,
+}: {
+  columnId: number;
+  onTaskAdded: () => void;
+}) {
   const [show, setShow] = useState(false);
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
@@ -170,7 +286,10 @@ function AddTaskForm({ columnId, onTaskAdded }: { columnId: number; onTaskAdded:
 
   return (
     <>
-      <button className="mt-2 text-sm text-blue-600 hover:underline" onClick={() => setShow(true)}>
+      <button
+        className="mt-2 text-sm text-blue-600 hover:underline"
+        onClick={() => setShow(true)}
+      >
         + Add Task
       </button>
       <SimpleModal open={show} onClose={() => setShow(false)}>
@@ -192,8 +311,19 @@ function AddTaskForm({ columnId, onTaskAdded }: { columnId: number; onTaskAdded:
             className="w-full p-2 border rounded"
           />
           <div className="flex gap-2">
-            <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">Add</button>
-            <button type="button" className="px-4 py-2" onClick={() => setShow(false)}>Cancel</button>
+            <button
+              type="submit"
+              className="bg-blue-500 text-white px-4 py-2 rounded"
+            >
+              Add
+            </button>
+            <button
+              type="button"
+              className="px-4 py-2"
+              onClick={() => setShow(false)}
+            >
+              Cancel
+            </button>
           </div>
           {error && <div className="text-red-600">{error}</div>}
         </form>
@@ -202,7 +332,13 @@ function AddTaskForm({ columnId, onTaskAdded }: { columnId: number; onTaskAdded:
   );
 }
 
-function ColumnActions({ column, onChanged }: { column: Column; onChanged: () => void }) {
+function ColumnActions({
+  column,
+  onChanged,
+}: {
+  column: Column;
+  onChanged: () => void;
+}) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(column.name);
   const [error, setError] = useState<string | null>(null);
@@ -238,8 +374,19 @@ function ColumnActions({ column, onChanged }: { column: Column; onChanged: () =>
           className="border rounded px-2 py-1 text-sm"
           required
         />
-        <button type="submit" className="text-xs bg-blue-500 text-white px-2 py-1 rounded">Save</button>
-        <button type="button" className="text-xs px-2 py-1" onClick={() => setEditing(false)}>Cancel</button>
+        <button
+          type="submit"
+          className="text-xs bg-blue-500 text-white px-2 py-1 rounded"
+        >
+          Save
+        </button>
+        <button
+          type="button"
+          className="text-xs px-2 py-1"
+          onClick={() => setEditing(false)}
+        >
+          Cancel
+        </button>
         {error && <span className="text-red-600 text-xs">{error}</span>}
       </form>
     );
@@ -247,8 +394,18 @@ function ColumnActions({ column, onChanged }: { column: Column; onChanged: () =>
 
   return (
     <span className="flex gap-2">
-      <button className="text-xs text-blue-600 hover:underline" onClick={() => setEditing(true)}>Edit</button>
-      <button className="text-xs text-red-600 hover:underline" onClick={handleDelete}>Delete</button>
+      <button
+        className="text-xs text-blue-600 hover:underline"
+        onClick={() => setEditing(true)}
+      >
+        Edit
+      </button>
+      <button
+        className="text-xs text-red-600 hover:underline"
+        onClick={handleDelete}
+      >
+        Delete
+      </button>
       {error && <span className="text-red-600 text-xs">{error}</span>}
     </span>
   );
@@ -300,7 +457,11 @@ function TaskModal({
   }
 
   return (
-    <SimpleModal open={true} onClose={onClose} onOverlayClick={handleOverlayClick}>
+    <SimpleModal
+      open={true}
+      onClose={onClose}
+      onOverlayClick={handleOverlayClick}
+    >
       {editing ? (
         <form onSubmit={handleEdit} className="flex flex-col gap-2">
           <input
@@ -316,8 +477,19 @@ function TaskModal({
             placeholder="Description"
           />
           <div className="flex gap-2 mt-2">
-            <button type="submit" className="bg-blue-500 text-white px-3 py-1 rounded">Save</button>
-            <button type="button" className="px-3 py-1" onClick={() => setEditing(false)}>Cancel</button>
+            <button
+              type="submit"
+              className="bg-blue-500 text-white px-3 py-1 rounded"
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              className="px-3 py-1"
+              onClick={() => setEditing(false)}
+            >
+              Cancel
+            </button>
           </div>
           {error && <span className="text-red-600 text-xs">{error}</span>}
         </form>
@@ -327,8 +499,18 @@ function TaskModal({
           {task.description && <p className="mb-2">{task.description}</p>}
           {/* TODO: Show assigned user if available */}
           <div className="flex gap-2 mt-4">
-            <button className="bg-blue-500 text-white px-3 py-1 rounded" onClick={() => setEditing(true)}>Edit</button>
-            <button className="bg-red-500 text-white px-3 py-1 rounded" onClick={handleDelete}>Delete</button>
+            <button
+              className="bg-blue-500 text-white px-3 py-1 rounded"
+              onClick={() => setEditing(true)}
+            >
+              Edit
+            </button>
+            <button
+              className="bg-red-500 text-white px-3 py-1 rounded"
+              onClick={handleDelete}
+            >
+              Delete
+            </button>
           </div>
           {error && <span className="text-red-600 text-xs">{error}</span>}
         </div>
@@ -372,5 +554,40 @@ function SimpleModal({
       </div>
     </div>,
     document.body
+  );
+}
+
+// DraggableTask component
+function DraggableTask({
+  task,
+  columnId,
+  onClick,
+}: {
+  task: Task;
+  columnId: number;
+  onClick: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({
+    id: task.id.toString(),
+    data: { columnId: columnId.toString() },
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition: "transform 200ms cubic-bezier(0.22, 1, 0.36, 1)",
+    cursor: "grab",
+  };
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="bg-white rounded-md shadow p-3 text-left"
+      onClick={onClick}
+    >
+      <span>{task.title}</span>
+    </li>
   );
 }

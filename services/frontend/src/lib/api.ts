@@ -142,14 +142,19 @@ export const boardApi = {
       }
     );
   },
-  async updateTask(taskId: number, data: { title?: string; description?: string }) {
-    return apiRequest<{ id: number; title: string; description?: string }>(
-      `/api/board/tasks/${taskId}`,
-      {
-        method: "PATCH",
-        body: JSON.stringify(data),
-      }
-    );
+  async updateTask(
+    taskId: number,
+    data: {
+      title?: string;
+      description?: string;
+      columnId?: number;
+      order?: number;
+    }
+  ) {
+    return apiRequest<{ id: number }>(`/api/tasks/${taskId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
   },
 
   async deleteTask(taskId: number) {
