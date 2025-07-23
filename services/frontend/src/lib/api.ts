@@ -144,14 +144,9 @@ export const boardApi = {
   },
   async updateTask(
     taskId: number,
-    data: {
-      title?: string;
-      description?: string;
-      columnId?: number;
-      order?: number;
-    }
+    data: { title?: string; description?: string; columnId?: number; order?: number }
   ) {
-    return apiRequest<{ id: number }>(`/api/tasks/${taskId}`, {
+    return apiRequest<{ id: number }>(`/api/board/tasks/${taskId}`, {
       method: "PATCH",
       body: JSON.stringify(data),
     });
