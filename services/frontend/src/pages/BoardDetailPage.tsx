@@ -122,10 +122,14 @@ export function BoardDetailPage() {
     destCol = columns.find(col =>
       col.tasks.some(t => t.id.toString() === over.id)
     );
-    // If dropped onto a column (empty space), find by column id
-    if (!destCol) {
-      destCol = columns.find(col => col.id.toString() === over.id);
+    // If dropped onto a column (empty space), find by column droppable id
+    if (!destCol && typeof over.id === "string" && over.id.startsWith("col-")) {
+      const colId = Number(over.id.replace("col-", ""));
+      destCol = columns.find(col => col.id === colId);
     }
+
+    console.log("active.id", active.id, "over.id", over.id, typeof over.id);
+    console.log("destCol", destCol);
 
     if (!sourceCol || !destCol) return;
 
@@ -231,7 +235,7 @@ export function BoardDetailPage() {
           {columns.map(col => (
             <SortableContext
               key={col.id}
-              id={col.id.toString()}
+              id={`col-${col.id}`}
               items={getTaskIds(col)}
               strategy={verticalListSortingStrategy}
             >
@@ -631,7 +635,7 @@ function DraggableTask({
 }
 
 function DroppableColumn({ col, children }: { col: Column; children: React.ReactNode }) {
-  const { setNodeRef } = useDroppable({ id: col.id.toString() });
+  const { setNodeRef } = useDroppable({ id: `col-${col.id}` });
   return (
     <div ref={setNodeRef} className="bg-gray-200 rounded-lg p-4 min-w-[220px]">
       {children}
