@@ -15,7 +15,6 @@ import {
   arrayMove,
   SortableContext,
   verticalListSortingStrategy,
-  horizontalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useDroppable, useDraggable } from "@dnd-kit/core";
@@ -128,6 +127,7 @@ export function BoardDetailPage() {
       destCol = columns.find(col => col.id === colId);
     }
 
+    // Debugging logs
     console.log("active.id", active.id, "over.id", over.id, typeof over.id);
     console.log("destCol", destCol);
 

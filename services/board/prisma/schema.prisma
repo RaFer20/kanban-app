@@ -33,9 +33,7 @@ model Column {
   order     Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  deletedAt DateTime? // <-- Add this
-
-  @@unique([boardId, name])
+  deletedAt DateTime?
 }
 
 model Task {
