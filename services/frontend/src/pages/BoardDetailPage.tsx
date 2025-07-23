@@ -8,6 +8,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  DragOverlay,
 } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
 import {
@@ -51,6 +52,7 @@ export function BoardDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
 
   // Fetch columns only
   async function fetchColumns() {
@@ -109,15 +111,21 @@ export function BoardDetailPage() {
     const { active, over } = event;
     if (!over) return;
 
-    // Find source and destination column/task
+    // Find source column
     const sourceCol = columns.find(col =>
       col.tasks.some(t => t.id.toString() === active.id)
     );
-    const destCol = columns.find(
-      col =>
-        col.id.toString() === over.data?.current?.columnId ||
-        col.tasks.some(t => t.id.toString() === over.id)
+
+    // Find destination column
+    let destCol: Column | undefined;
+    // If dropped onto a task, find its column
+    destCol = columns.find(col =>
+      col.tasks.some(t => t.id.toString() === over.id)
     );
+    // If dropped onto a column (empty space), find by column id
+    if (!destCol) {
+      destCol = columns.find(col => col.id.toString() === over.id);
+    }
 
     if (!sourceCol || !destCol) return;
 
@@ -130,9 +138,16 @@ export function BoardDetailPage() {
         t => t.id.toString() === over.id
       );
 
+      // If dropped into empty space, newIndex will be -1
+      if (newIndex === -1) {
+        // Place at end
+        await boardApi.updateTask(sourceCol.tasks[oldIndex].id, { order: destCol.tasks.length });
+        await fetchColumns();
+        return;
+      }
+
       if (oldIndex !== newIndex) {
         const newTasks = arrayMove(sourceCol.tasks, oldIndex, newIndex);
-        // Update order in backend for all affected tasks
         for (let i = 0; i < newTasks.length; i++) {
           if (newTasks[i].order !== i + 1) {
             await boardApi.updateTask(newTasks[i].id, { order: i + 1 });
@@ -144,7 +159,6 @@ export function BoardDetailPage() {
       // Move to another column
       const task = sourceCol.tasks.find(t => t.id.toString() === active.id);
       if (task) {
-        // Place at end of dest column
         await boardApi.updateTask(task.id, {
           columnId: destCol.id,
           order: destCol.tasks.length + 1,
@@ -162,7 +176,11 @@ export function BoardDetailPage() {
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
-      onDragEnd={handleDragEnd}
+      onDragStart={event => setActiveTaskId(event.active.id.toString())}
+      onDragEnd={event => {
+        setActiveTaskId(null);
+        handleDragEnd(event);
+      }}
     >
       <div className="p-8">
         <h1 className="text-2xl font-bold mb-4">{board.name}</h1>
@@ -217,7 +235,7 @@ export function BoardDetailPage() {
               items={getTaskIds(col)}
               strategy={verticalListSortingStrategy}
             >
-              <div className="bg-gray-200 rounded-lg p-4 min-w-[220px]">
+              <DroppableColumn col={col}>
                 <h2 className="font-semibold mb-2 flex justify-between items-center">
                   <span>{col.name}</span>
                   <ColumnActions column={col} onChanged={fetchColumns} />
@@ -231,6 +249,7 @@ export function BoardDetailPage() {
                           key={task.id}
                           task={task}
                           columnId={col.id}
+                          activeTaskId={activeTaskId}
                           onClick={() => {
                             setSelectedTask(task);
                             setShowTaskModal(true);
@@ -242,7 +261,7 @@ export function BoardDetailPage() {
                   )}
                 </ul>
                 <AddTaskForm columnId={col.id} onTaskAdded={fetchColumns} />
-              </div>
+              </DroppableColumn>
             </SortableContext>
           ))}
         </div>
@@ -253,6 +272,21 @@ export function BoardDetailPage() {
             onChanged={fetchColumns}
           />
         )}
+        <DragOverlay>
+          {activeTaskId
+            ? (() => {
+                const task = columns.flatMap(col => col.tasks).find(t => t.id.toString() === activeTaskId);
+                return task ? (
+                  <li
+                    className="bg-white rounded-md shadow p-3 text-left min-w-[180px] opacity-90"
+                    style={{ cursor: "grabbing" }}
+                  >
+                    <span>{task.title}</span>
+                  </li>
+                ) : null;
+              })()
+            : null}
+        </DragOverlay>
       </div>
     </DndContext>
   );
@@ -561,12 +595,16 @@ function SimpleModal({
 function DraggableTask({
   task,
   columnId,
+  activeTaskId,
   onClick,
 }: {
   task: Task;
   columnId: number;
+  activeTaskId: string | null;
   onClick: () => void;
 }) {
+  if (activeTaskId === task.id.toString()) return null;
+
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: task.id.toString(),
     data: { columnId: columnId.toString() },
@@ -584,10 +622,19 @@ function DraggableTask({
       style={style}
       {...attributes}
       {...listeners}
-      className="bg-white rounded-md shadow p-3 text-left"
+      className="bg-white rounded-md shadow p-3 text-left min-w-[180px]"
       onClick={onClick}
     >
       <span>{task.title}</span>
     </li>
+  );
+}
+
+function DroppableColumn({ col, children }: { col: Column; children: React.ReactNode }) {
+  const { setNodeRef } = useDroppable({ id: col.id.toString() });
+  return (
+    <div ref={setNodeRef} className="bg-gray-200 rounded-lg p-4 min-w-[220px]">
+      {children}
+    </div>
   );
 }
