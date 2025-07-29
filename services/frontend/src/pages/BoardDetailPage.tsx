@@ -54,6 +54,7 @@ export function BoardDetailPage() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+  const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
 
   // Fetch columns only
   async function fetchColumns() {
@@ -199,10 +200,21 @@ export function BoardDetailPage() {
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
-      onDragStart={event => setActiveTaskId(event.active.id.toString())}
+      onDragStart={event => {
+        setActiveTaskId(event.active.id.toString());
+        // If it's a column, set activeColumnId
+        if (columns.some(col => col.id.toString() === event.active.id)) {
+          setActiveColumnId(event.active.id.toString());
+        }
+      }}
       onDragEnd={event => {
         setActiveTaskId(null);
+        setActiveColumnId(null);
         handleDragEnd(event);
+      }}
+      onDragCancel={() => {
+        setActiveTaskId(null);
+        setActiveColumnId(null);
       }}
     >
       <div className="p-8">
@@ -261,6 +273,7 @@ export function BoardDetailPage() {
                 col={col}
                 tasks={col.tasks}
                 activeTaskId={activeTaskId}
+                activeColumnId={activeColumnId}
                 onTaskClick={task => {
                   setSelectedTask(task);
                   setShowTaskModal(true);
@@ -278,17 +291,61 @@ export function BoardDetailPage() {
           />
         )}
         <DragOverlay>
+          {activeColumnId
+            ? (() => {
+                const col = columns.find(c => c.id.toString() === activeColumnId);
+                if (!col) return null;
+                return (
+                  <div
+                    className="bg-gray-200 rounded-lg p-4 min-w-[220px] max-w-[320px] shadow-lg"
+                    style={{
+                      opacity: 0.95,
+                      border: "2px solid #3b82f6",
+                      boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+                    }}
+                  >
+                    <h2 className="font-semibold mb-2 flex justify-between items-center">
+                      <span>{col.name}</span>
+                    </h2>
+                    <ul className="space-y-2">
+                      {col.tasks && col.tasks.length > 0 ? (
+                        col.tasks
+                          .sort((a, b) => a.order - b.order)
+                          .map(task => (
+                            <li
+                              key={task.id}
+                              className="bg-white rounded-md shadow p-3 text-left min-w-[180px] opacity-70"
+                            >
+                              <span>{task.title}</span>
+                            </li>
+                          ))
+                      ) : (
+                        <li className="text-gray-500">No tasks</li>
+                      )}
+                    </ul>
+                  </div>
+                );
+              })()
+            : null}
           {activeTaskId
             ? (() => {
-                const task = columns.flatMap(col => col.tasks).find(t => t.id.toString() === activeTaskId);
-                return task ? (
+                // Find the task and its column
+                const col = columns.find(c =>
+                  c.tasks.some(t => t.id.toString() === activeTaskId)
+                );
+                const task = col?.tasks.find(t => t.id.toString() === activeTaskId);
+                if (!task) return null;
+                return (
                   <li
-                    className="bg-white rounded-md shadow p-3 text-left min-w-[180px] opacity-90"
-                    style={{ cursor: "grabbing" }}
+                    className="bg-white rounded-md shadow p-3 text-left min-w-[180px]"
+                    style={{
+                      opacity: 0.9,
+                      boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+                    }}
                   >
                     <span>{task.title}</span>
                   </li>
-                ) : null;
+                );
               })()
             : null}
         </DragOverlay>
@@ -648,12 +705,14 @@ function SortableColumn({
   col,
   tasks,
   activeTaskId,
+  activeColumnId,
   onTaskClick,
   onChanged,
 }: {
   col: Column;
   tasks: Task[];
   activeTaskId: string | null;
+  activeColumnId: string | null;
   onTaskClick: (task: Task) => void;
   onChanged: () => void;
 }) {
@@ -682,6 +741,11 @@ function SortableColumn({
       ? "0 4px 16px rgba(0,0,0,0.12)"
       : "0 1px 4px rgba(0,0,0,0.04)",
   };
+
+  if (activeColumnId === col.id.toString()) {
+    // Hide the original column while dragging
+    return <div style={{ minWidth: 220, maxWidth: 320, marginRight: "1rem" }} />;
+  }
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
