@@ -15,6 +15,8 @@ import {
   arrayMove,
   SortableContext,
   verticalListSortingStrategy,
+  horizontalListSortingStrategy,
+  useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useDroppable, useDraggable } from "@dnd-kit/core";
@@ -98,18 +100,35 @@ export function BoardDetailPage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
-  // Helper: get all task IDs in order for a column
-  function getTaskIds(column: Column) {
-    return [...column.tasks]
-      .sort((a, b) => a.order - b.order)
-      .map(t => t.id.toString());
-  }
-
   // Handler for drag end
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over) return;
 
+    // --- COLUMN DRAG ---
+    // If both IDs are columns (numbers), handle column move
+    if (
+      !isNaN(Number(active.id)) &&
+      !isNaN(Number(over.id)) &&
+      columns.some(col => col.id.toString() === active.id) &&
+      columns.some(col => col.id.toString() === over.id)
+    ) {
+      const oldIndex = columns.findIndex(col => col.id.toString() === active.id);
+      const newIndex = columns.findIndex(col => col.id.toString() === over.id);
+      if (oldIndex !== newIndex) {
+        const newColumns = arrayMove(columns, oldIndex, newIndex);
+        // Update order in backend for all affected columns
+        for (let i = 0; i < newColumns.length; i++) {
+          if (newColumns[i].order !== i + 1) {
+            await boardApi.updateColumn(newColumns[i].id, { order: i + 1 });
+          }
+        }
+        await fetchColumns();
+      }
+      return;
+    }
+
+    // --- TASK DRAG (existing logic) ---
     // Find source column
     const sourceCol = columns.find(col =>
       col.tasks.some(t => t.id.toString() === active.id)
@@ -232,42 +251,24 @@ export function BoardDetailPage() {
           </form>
         </SimpleModal>
         <div className="flex gap-4">
-          {columns.map(col => (
-            <SortableContext
-              key={col.id}
-              id={`col-${col.id}`}
-              items={getTaskIds(col)}
-              strategy={verticalListSortingStrategy}
-            >
-              <DroppableColumn col={col}>
-                <h2 className="font-semibold mb-2 flex justify-between items-center">
-                  <span>{col.name}</span>
-                  <ColumnActions column={col} onChanged={fetchColumns} />
-                </h2>
-                <ul className="space-y-2">
-                  {col.tasks && col.tasks.length > 0 ? (
-                    col.tasks
-                      .sort((a, b) => a.order - b.order)
-                      .map(task => (
-                        <DraggableTask
-                          key={task.id}
-                          task={task}
-                          columnId={col.id}
-                          activeTaskId={activeTaskId}
-                          onClick={() => {
-                            setSelectedTask(task);
-                            setShowTaskModal(true);
-                          }}
-                        />
-                      ))
-                  ) : (
-                    <li className="text-gray-500">No tasks</li>
-                  )}
-                </ul>
-                <AddTaskForm columnId={col.id} onTaskAdded={fetchColumns} />
-              </DroppableColumn>
-            </SortableContext>
-          ))}
+          <SortableContext
+            items={columns.map(col => col.id.toString())}
+            strategy={horizontalListSortingStrategy}
+          >
+            {columns.map(col => (
+              <SortableColumn
+                key={col.id}
+                col={col}
+                tasks={col.tasks}
+                activeTaskId={activeTaskId}
+                onTaskClick={task => {
+                  setSelectedTask(task);
+                  setShowTaskModal(true);
+                }}
+                onChanged={fetchColumns}
+              />
+            ))}
+          </SortableContext>
         </div>
         {showTaskModal && selectedTask && (
           <TaskModal
@@ -639,6 +640,81 @@ function DroppableColumn({ col, children }: { col: Column; children: React.React
   return (
     <div ref={setNodeRef} className="bg-gray-200 rounded-lg p-4 min-w-[220px]">
       {children}
+    </div>
+  );
+}
+
+function SortableColumn({
+  col,
+  tasks,
+  activeTaskId,
+  onTaskClick,
+  onChanged,
+}: {
+  col: Column;
+  tasks: Task[];
+  activeTaskId: string | null;
+  onTaskClick: (task: Task) => void;
+  onChanged: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: col.id.toString() });
+
+  // Style for dragging columns
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.7 : 1,
+    cursor: "grab",
+    minWidth: 220,
+    maxWidth: 320,
+    background: "var(--card, #f3f4f6)",
+    borderRadius: "0.5rem",
+    padding: "1rem",
+    marginRight: "1rem",
+    boxShadow: isDragging
+      ? "0 4px 16px rgba(0,0,0,0.12)"
+      : "0 1px 4px rgba(0,0,0,0.04)",
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <h2 className="font-semibold mb-2 flex justify-between items-center">
+        <span>{col.name}</span>
+        <ColumnActions column={col} onChanged={onChanged} />
+      </h2>
+      <SortableContext
+        id={`col-${col.id}`}
+        items={tasks.map(t => t.id.toString())}
+        strategy={verticalListSortingStrategy}
+      >
+        <DroppableColumn col={col}>
+          <ul className="space-y-2">
+            {tasks && tasks.length > 0 ? (
+              tasks
+                .sort((a, b) => a.order - b.order)
+                .map(task => (
+                  <DraggableTask
+                    key={task.id}
+                    task={task}
+                    columnId={col.id}
+                    activeTaskId={activeTaskId}
+                    onClick={() => onTaskClick(task)}
+                  />
+                ))
+            ) : (
+              <li className="text-gray-500">No tasks</li>
+            )}
+          </ul>
+          <AddTaskForm columnId={col.id} onTaskAdded={onChanged} />
+        </DroppableColumn>
+      </SortableContext>
     </div>
   );
 }
