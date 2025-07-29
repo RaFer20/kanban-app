@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { boardApi } from "../lib/api";
@@ -55,6 +55,8 @@ export function BoardDetailPage() {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
+  const [selectedColumn, setSelectedColumn] = useState<Column | null>(null);
+  const [showColumnModal, setShowColumnModal] = useState(false);
 
   // Fetch columns only
   async function fetchColumns() {
@@ -278,6 +280,10 @@ export function BoardDetailPage() {
                   setSelectedTask(task);
                   setShowTaskModal(true);
                 }}
+                onColumnClick={col => {
+                  setSelectedColumn(col);
+                  setShowColumnModal(true);
+                }}
                 onChanged={fetchColumns}
               />
             ))}
@@ -288,6 +294,16 @@ export function BoardDetailPage() {
             task={selectedTask}
             onClose={() => setShowTaskModal(false)}
             onChanged={fetchColumns}
+          />
+        )}
+        {showColumnModal && selectedColumn && (
+          <ColumnModal
+            column={selectedColumn}
+            onClose={() => setShowColumnModal(false)}
+            onChanged={() => {
+              setShowColumnModal(false);
+              fetchColumns();
+            }}
           />
         )}
         <DragOverlay>
@@ -428,85 +444,6 @@ function AddTaskForm({
   );
 }
 
-function ColumnActions({
-  column,
-  onChanged,
-}: {
-  column: Column;
-  onChanged: () => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(column.name);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleEdit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    try {
-      await boardApi.updateColumn(column.id, { name });
-      setEditing(false);
-      onChanged();
-    } catch (err: any) {
-      setError(err?.message || "Failed to update column.");
-    }
-  }
-
-  async function handleDelete() {
-    if (!window.confirm("Delete this column and all its tasks?")) return;
-    try {
-      await boardApi.deleteColumn(column.id);
-      onChanged();
-    } catch (err: any) {
-      setError(err?.message || "Failed to delete column.");
-    }
-  }
-
-  if (editing) {
-    return (
-      <form onSubmit={handleEdit} className="flex gap-2 items-center">
-        <input
-          value={name}
-          onChange={e => setName(e.target.value)}
-          className="border rounded px-2 py-1 text-sm"
-          required
-        />
-        <button
-          type="submit"
-          className="text-xs bg-blue-500 text-white px-2 py-1 rounded"
-        >
-          Save
-        </button>
-        <button
-          type="button"
-          className="text-xs px-2 py-1"
-          onClick={() => setEditing(false)}
-        >
-          Cancel
-        </button>
-        {error && <span className="text-red-600 text-xs">{error}</span>}
-      </form>
-    );
-  }
-
-  return (
-    <span className="flex gap-2">
-      <button
-        className="text-xs text-blue-600 hover:underline"
-        onClick={() => setEditing(true)}
-      >
-        Edit
-      </button>
-      <button
-        className="text-xs text-red-600 hover:underline"
-        onClick={handleDelete}
-      >
-        Delete
-      </button>
-      {error && <span className="text-red-600 text-xs">{error}</span>}
-    </span>
-  );
-}
-
 function TaskModal({
   task,
   onClose,
@@ -626,15 +563,29 @@ function SimpleModal({
   children: React.ReactNode;
   onOverlayClick?: (e: React.MouseEvent<HTMLDivElement>) => void;
 }) {
+  const mouseDownTarget = useRef<EventTarget | null>(null);
+
   if (!open) return null;
   return createPortal(
     <div
       style={{ backgroundColor: "rgba(0,0,0,0.3)" }}
       className="fixed inset-0 flex items-center justify-center z-50"
-      onClick={onOverlayClick || onClose}
       tabIndex={-1}
       aria-modal="true"
       role="dialog"
+      onMouseDown={e => {
+        mouseDownTarget.current = e.target;
+      }}
+      onMouseUp={e => {
+        // Only close if both down and up were on the overlay itself
+        if (
+          mouseDownTarget.current === e.currentTarget &&
+          e.target === e.currentTarget
+        ) {
+          if (onOverlayClick) onOverlayClick(e as any);
+          else onClose();
+        }
+      }}
     >
       <div
         className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative"
@@ -701,12 +652,107 @@ function DroppableColumn({ col, children }: { col: Column; children: React.React
   );
 }
 
+function ColumnModal({
+  column,
+  onClose,
+  onChanged,
+}: {
+  column: Column;
+  onClose: () => void;
+  onChanged: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(column.name);
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing && inputRef.current) inputRef.current.focus();
+  }, [editing]);
+
+  async function handleEdit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    try {
+      await boardApi.updateColumn(column.id, { name });
+      setEditing(false);
+      onChanged();
+    } catch (err: any) {
+      setError(err?.message || "Failed to update column.");
+    }
+  }
+
+  async function handleDelete() {
+    if (!window.confirm("Delete this column and all its tasks?")) return;
+    try {
+      await boardApi.deleteColumn(column.id);
+      onChanged();
+    } catch (err: any) {
+      setError(err?.message || "Failed to delete column.");
+    }
+  }
+
+  function handleOverlayClick(e: React.MouseEvent<HTMLDivElement>) {
+    if (e.target === e.currentTarget) onClose();
+  }
+
+  return (
+    <SimpleModal open={true} onClose={onClose} onOverlayClick={handleOverlayClick}>
+      {editing ? (
+        <form onSubmit={handleEdit} className="flex flex-col gap-4">
+          <h2 className="text-xl font-bold mb-2">Edit Column</h2>
+          <input
+            ref={inputRef}
+            value={name}
+            onChange={e => setName(e.target.value)}
+            className="w-full p-2 border rounded"
+            required
+          />
+          <div className="flex gap-2">
+            <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">
+              Save
+            </button>
+            <button type="button" className="px-4 py-2" onClick={() => setEditing(false)}>
+              Cancel
+            </button>
+          </div>
+          {error && <div className="text-red-600">{error}</div>}
+        </form>
+      ) : (
+        <div>
+          <h2 className="text-xl font-bold mb-2">{column.name}</h2>
+          <div className="flex gap-2 mt-4">
+            <button
+              className="bg-blue-500 text-white px-4 py-2 rounded"
+              onClick={() => setEditing(true)}
+            >
+              Edit
+            </button>
+            <button
+              className="bg-red-500 text-white px-4 py-2 rounded"
+              onClick={handleDelete}
+            >
+              Delete
+            </button>
+            <button className="px-4 py-2" onClick={onClose}>
+              Close
+            </button>
+          </div>
+          {error && <div className="text-red-600 mt-2">{error}</div>}
+        </div>
+      )}
+    </SimpleModal>
+  );
+}
+
+// Remove ColumnActions from SortableColumn header
 function SortableColumn({
   col,
   tasks,
   activeTaskId,
   activeColumnId,
   onTaskClick,
+  onColumnClick,
   onChanged,
 }: {
   col: Column;
@@ -714,6 +760,7 @@ function SortableColumn({
   activeTaskId: string | null;
   activeColumnId: string | null;
   onTaskClick: (task: Task) => void;
+  onColumnClick: (col: Column) => void;
   onChanged: () => void;
 }) {
   const {
@@ -750,8 +797,13 @@ function SortableColumn({
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
       <h2 className="font-semibold mb-2 flex justify-between items-center">
-        <span>{col.name}</span>
-        <ColumnActions column={col} onChanged={onChanged} />
+        <span
+          className="cursor-pointer hover:underline"
+          onClick={() => onColumnClick(col)}
+        >
+          {col.name}
+        </span>
+        {/* ColumnActions removed */}
       </h2>
       <SortableContext
         id={`col-${col.id}`}
