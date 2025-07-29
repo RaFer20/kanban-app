@@ -745,7 +745,6 @@ function ColumnModal({
   );
 }
 
-// Remove ColumnActions from SortableColumn header
 function SortableColumn({
   col,
   tasks,
@@ -803,7 +802,6 @@ function SortableColumn({
         >
           {col.name}
         </span>
-        {/* ColumnActions removed */}
       </h2>
       <SortableContext
         id={`col-${col.id}`}
