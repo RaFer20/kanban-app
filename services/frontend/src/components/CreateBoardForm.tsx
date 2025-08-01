@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { boardApi } from "../lib/api";
 
 type CreateBoardFormProps = {
@@ -10,6 +10,10 @@ export function CreateBoardForm({ onCreated, onCancel }: CreateBoardFormProps) {
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setError(null);
+  }, [name]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -28,6 +32,7 @@ export function CreateBoardForm({ onCreated, onCancel }: CreateBoardFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="mb-6 p-4 bg-gray-100 rounded shadow w-full max-w-md">
+      {error && <div className="mb-2 text-red-600">{error}</div>}
       <input
         type="text"
         placeholder="Board name"
@@ -54,7 +59,6 @@ export function CreateBoardForm({ onCreated, onCancel }: CreateBoardFormProps) {
           Cancel
         </button>
       </div>
-      {error && <div className="mt-2 text-red-600">{error}</div>}
     </form>
   );
 }

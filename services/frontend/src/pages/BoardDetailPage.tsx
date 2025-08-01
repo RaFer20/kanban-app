@@ -37,6 +37,8 @@ export function BoardDetailPage() {
 
   const {
     handleDragEnd,
+    error: dndError,
+    setError: setDndError,
   } = useBoardDnD(columns, fetchColumns);
 
   if (loading) return <div className="p-8">Loading board...</div>;
@@ -94,6 +96,12 @@ export function BoardDetailPage() {
             onCancel={() => setShowAddColumn(false)}
           />
         </SimpleModal>
+        {dndError && (
+          <div className="p-2 mb-2 bg-red-100 text-red-700 rounded">
+            {dndError}
+            <button className="ml-2 text-xs underline" onClick={() => setDndError(null)}>Dismiss</button>
+          </div>
+        )}
         <div className="flex gap-4">
           <SortableContext
             items={columns.map(col => col.id.toString())}
