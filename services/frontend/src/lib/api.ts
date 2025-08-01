@@ -1,3 +1,5 @@
+import type { Board } from "../types/board";
+
 // API utility functions
 
 const API_BASE = ''; // Empty since we're using proxy in nginx
@@ -158,6 +160,12 @@ export const boardApi = {
       {
         method: "DELETE",
       }
+    );
+  },
+
+  async getOwnedBoards(limit = 10, offset = 0) {
+    return apiRequest<{ items: Board[]; total: number; limit: number; offset: number }>(
+      `/api/board/boards/owned?limit=${limit}&offset=${offset}`
     );
   },
 };

@@ -3,7 +3,8 @@ import {
   createBoardWithOwner,
   getUserRoleForBoard, 
   deleteBoard,
-  getBoardsPaginated
+  getBoardsPaginated,
+  getOwnedBoardsPaginated
 } from '../services/boardService';
 import { createBoardSchema } from "../schemas/boardSchema";
 import { AuthenticatedRequest } from "../types/express";
@@ -219,4 +220,43 @@ export async function getBoardHandler(
     return;
   }
   res.json(board);
+}
+
+/**
+ * @openapi
+ * /api/boards/owned:
+ *   get:
+ *     summary: List all boards owned by the user with pagination
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: offset
+ *         required: false
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: List of owned boards
+ */
+export async function getOwnedBoardsPaginatedHandler(
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> {
+  const userId = req.user?.id;
+  if (typeof userId !== 'number') {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const limit = Math.min(parseInt(req.query.limit as string) || 10, 50);
+  const offset = parseInt(req.query.offset as string) || 0;
+  try {
+    const result = await getOwnedBoardsPaginated(userId, limit, offset);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch owned boards' });
+  }
 }
