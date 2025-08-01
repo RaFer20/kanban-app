@@ -4,6 +4,7 @@ import {
   deleteBoardHandler,
   getBoardsPaginatedHandler,
   getBoardHandler,
+  getOwnedBoardsPaginatedHandler,
 } from '../controllers/boardController';
 import {
   createColumnHandler,
@@ -23,11 +24,13 @@ import {
   removeBoardMemberHandler,
   updateBoardMemberRoleHandler,
 } from '../controllers/membershipController';
+import { authenticateJWT } from '../middleware/authMiddleware';
 
 const router = Router();
 
 router.post('/boards', createBoardHandler);
 router.get('/boards', getBoardsPaginatedHandler);
+router.get('/boards/owned', authenticateJWT, getOwnedBoardsPaginatedHandler);
 router.get('/boards/:boardId', getBoardHandler);
 router.delete('/boards/:boardId', deleteBoardHandler);
 

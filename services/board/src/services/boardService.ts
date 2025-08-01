@@ -9,7 +9,10 @@ import prisma from '../prisma';
 export async function createBoardWithOwner(name: string, userId: number) {
   return prisma.$transaction(async (tx) => {
     const board = await tx.board.create({
-      data: { name },
+      data: { 
+        name,
+        ownerId: userId,
+       },
     });
     await tx.boardMembership.create({
       data: {
@@ -45,6 +48,28 @@ export async function getBoardsPaginated(userId: number, limit = 10, offset = 0)
         memberships: { some: { userId } },
         deletedAt: null,
       },
+    }),
+  ]);
+  return { items, total, limit, offset };
+}
+
+/**
+ * Fetches a paginated list of boards owned by a specific user.
+ * @param userId - The ID of the user.
+ * @param limit - Max number of boards to return.
+ * @param offset - How many boards to skip (for pagination).
+ * @returns An object with items (boards) and total count.
+ */
+export async function getOwnedBoardsPaginated(userId: number, limit = 10, offset = 0) {
+  const [items, total] = await Promise.all([
+    prisma.board.findMany({
+      where: { ownerId: userId, deletedAt: null },
+      orderBy: { id: 'asc' },
+      skip: offset,
+      take: limit,
+    }),
+    prisma.board.count({
+      where: { ownerId: userId, deletedAt: null },
     }),
   ]);
   return { items, total, limit, offset };
