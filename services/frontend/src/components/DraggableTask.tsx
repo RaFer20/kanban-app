@@ -6,16 +6,12 @@ import type { Task } from "../types/board";
 export function DraggableTask({
   task,
   columnId,
-  activeTaskId,
   onClick,
 }: {
   task: Task;
   columnId: number;
-  activeTaskId: string | null;
   onClick: () => void;
 }) {
-  if (activeTaskId === task.id.toString()) return null;
-
   const { attributes, listeners, setNodeRef, transform } = useSortable({
     id: task.id.toString(),
     data: { columnId: columnId.toString() },

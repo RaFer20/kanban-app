@@ -7,8 +7,10 @@ import { boardApi } from "../lib/api";
 export function useBoardDnD(columns: Column[], fetchColumns: () => Promise<void>) {
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null); // Add error state
 
   async function handleDragEnd(event: DragEndEvent) {
+    setError(null);
     const { active, over } = event;
     if (!over) return;
 
@@ -73,11 +75,22 @@ export function useBoardDnD(columns: Column[], fetchColumns: () => Promise<void>
     } else {
       const task = sourceCol.tasks.find(t => t.id.toString() === active.id);
       if (task) {
-        await boardApi.updateTask(task.id, {
-          columnId: destCol.id,
-          order: destCol.tasks.length + 1,
-        });
-        await fetchColumns();
+        try {
+          await boardApi.updateTask(task.id, {
+            columnId: destCol.id,
+            order: destCol.tasks.length + 1,
+          });
+          await fetchColumns();
+        } catch (err: any) {
+          // Show backend error message if present
+          if (err?.status === 409 && err?.message) {
+            setError(err.message);
+          } else if (err?.message) {
+            setError(err.message);
+          } else {
+            setError("Failed to update task.");
+          }
+        }
       }
     }
   }
@@ -88,5 +101,7 @@ export function useBoardDnD(columns: Column[], fetchColumns: () => Promise<void>
     activeColumnId,
     setActiveColumnId,
     handleDragEnd,
+    error,
+    setError,
   };
 }

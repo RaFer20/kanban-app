@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { boardApi } from "../lib/api";
 
 export function AddColumnForm({ boardId, onAdded, onCancel }: { boardId: number; onAdded: () => void; onCancel: () => void }) {
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => { setError(null); }, [name]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

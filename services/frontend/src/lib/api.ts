@@ -29,7 +29,15 @@ async function apiRequest<T>(
 
   const response = await fetch(`${API_BASE}${endpoint}`, config);
   if (!response.ok) {
-    throw new ApiError(response.status, `HTTP error! status: ${response.status}`);
+    let message = `HTTP error! status: ${response.status}`;
+    try {
+      const data = await response.json();
+      if (data?.error) message = data.error;
+      if (data?.message) message = data.message;
+    } catch {
+      // fallback to default message
+    }
+    throw new ApiError(response.status, message);
   }
   if (response.status === 204) {
     return undefined as T;
