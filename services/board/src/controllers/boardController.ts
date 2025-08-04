@@ -4,7 +4,9 @@ import {
   getUserRoleForBoard, 
   deleteBoard,
   getBoardsPaginated,
-  getOwnedBoardsPaginated
+  getOwnedBoardsPaginated,
+  getAllBoards,
+  resetDemoData
 } from '../services/boardService';
 import { createBoardSchema } from "../schemas/boardSchema";
 import { AuthenticatedRequest } from "../types/express";
@@ -12,6 +14,7 @@ import { requireRole } from "../utils/requireRole";
 import prisma from '../prisma';
 import { boardsCreated } from '../metrics';
 import { ensureBoardActive } from '../utils/entityChecks';
+import { exec } from 'child_process';
 
 /**
  * @openapi
@@ -258,5 +261,41 @@ export async function getOwnedBoardsPaginatedHandler(
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch owned boards' });
+  }
+}
+
+/**
+ * @openapi
+ * /api/admin/boards:
+ *   get:
+ *     summary: List all boards (admin only)
+ *     responses:
+ *       200:
+ *         description: List of all boards
+ */
+export async function listAllBoardsHandler(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const boards = await getAllBoards();
+    res.json(boards);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch boards' });
+  }
+}
+
+/**
+ * @openapi
+ * /api/admin/reset-demo:
+ *   post:
+ *     summary: Reset demo data (admin only)
+ *     responses:
+ *       200:
+ *         description: Demo data reset
+ */
+export async function resetDemoDataHandler(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const { stdout } = await resetDemoData();
+    res.json({ message: 'Demo data reset', output: stdout });
+  } catch (err: any) {
+    res.status(500).json({ error: err.stderr || 'Failed to reset demo data' });
   }
 }

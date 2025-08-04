@@ -9,6 +9,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from jose import JWTError, jwt
 from jose.exceptions import ExpiredSignatureError
+from sqlalchemy.future import select
 
 # Local
 from app.core.config import get_settings
@@ -100,7 +101,7 @@ async def login_user(
     jti = str(uuid4())
 
     access_token = create_access_token(
-        data={"sub": str(user.id)},
+        data={"sub": str(user.id), "role": user.role},
         expires_delta=access_exp_delta,
     )
     refresh_token = create_refresh_token(
@@ -214,14 +215,6 @@ async def refresh_access_token(
 
         await db.refresh(user)
 
-        # Log all valid refresh tokens for this user before validation
-        tokens_before = await get_all_valid_refresh_tokens_for_user(db, user.id)
-        logger.debug(f"[PRE] Valid refresh tokens for user {user.id}: {[t.jti for t in tokens_before]}")
-
-        # Log the token being checked
-        token_in_db = await get_refresh_token_from_db(db, jti, user.id)
-        logger.debug(f"Token in DB for jti={jti}: {token_in_db}")
-
         if user.last_refresh_jti != jti:
             logger.warning(f"Refresh token reuse detected for user ID {user_id}: token JTI {jti} does not match last_refresh_jti {user.last_refresh_jti}")
             await auth_service.revoke_refresh_token(db, user, jti=jti, clear_jti=False)
@@ -237,7 +230,7 @@ async def refresh_access_token(
         new_jti = str(uuid4())
 
         access_token = create_access_token(
-            data={"sub": str(user_id)},
+            data={"sub": str(user_id), "role": user.role},
             expires_delta=timedelta(minutes=settings.access_token_expire_minutes),
         )
         new_refresh_token = create_refresh_token(
@@ -347,3 +340,23 @@ async def admin_dashboard(user: User = Depends(require_role("admin"))):
     admin_action_counter.labels(action="dashboard_access").inc()
     logger.debug(f"Admin access by user ID {user.id}, email {user.email}")
     return {"message": f"Welcome, admin {user.email}"}
+
+
+@router.get("/admin/users", response_model=list[UserOut], tags=["admin"])
+async def list_all_users(
+    user: User = Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    List all users (admin only).
+
+    Args:
+        user (User): The authenticated admin user.
+        db (AsyncSession): The database session.
+
+    Returns:
+        List[UserOut]: All users in the system.
+    """
+    result = await db.execute(select(User))
+    users = result.scalars().all()
+    return [UserOut.model_validate(u) for u in users]

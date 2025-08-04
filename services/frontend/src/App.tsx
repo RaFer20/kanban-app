@@ -7,11 +7,13 @@ import { RegisterPage } from './pages/RegisterPage';
 import { BoardsPage } from './pages/BoardsPage';
 import { BoardDetailPage } from './pages/BoardDetailPage';
 import { authApi } from './lib/api';
+import { AdminPage } from "./pages/AdminPage";
 
 // Auth Context for managing user state
 interface User {
   id: number;
   email: string;
+  role: string;
 }
 
 interface AuthContextType {
@@ -183,6 +185,11 @@ function App() {
                     <BoardDetailPage />
                   </AuthGuard>
               } />
+              <Route path="/admin" element={
+                <AuthGuard>
+                  <AdminPage />
+                </AuthGuard>
+              } />
               <Route path="*" element={<CatchAllRedirect />} />
             </Routes>
           </main>
@@ -200,6 +207,12 @@ function AuthHeader() {
   return (
     <div className="flex items-center space-x-4">
       <span className="text-black">Welcome, {user.email}</span>
+      {/* Show admin panel link if user is admin */}
+      {user.role === "admin" && (
+        <Button asChild>
+          <Link to="/admin">Admin Panel</Link>
+        </Button>
+      )}
       <Button 
         variant="destructive"
         size="sm"

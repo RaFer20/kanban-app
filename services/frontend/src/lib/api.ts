@@ -80,6 +80,10 @@ export const authApi = {
     }
     return;
   },
+
+  async getAllUsers() {
+    return apiRequest<Array<{ id: number; email: string }>>("/api/v1/admin/users");
+  },
 };
 
 // Board API
@@ -175,6 +179,15 @@ export const boardApi = {
     return apiRequest<{ items: Board[]; total: number; limit: number; offset: number }>(
       `/api/board/boards/owned?limit=${limit}&offset=${offset}`
     );
+  },
+
+  async getAllBoardsAdmin() {
+    return apiRequest<Board[]>("/api/board/admin/boards");
+  },
+  async resetDemoData() {
+    return apiRequest<{ message: string }>("/api/board/admin/reset-demo", {
+      method: "POST",
+    });
   },
 };
 
