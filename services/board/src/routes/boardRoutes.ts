@@ -5,6 +5,8 @@ import {
   getBoardsPaginatedHandler,
   getBoardHandler,
   getOwnedBoardsPaginatedHandler,
+  listAllBoardsHandler,
+  resetDemoDataHandler,
 } from '../controllers/boardController';
 import {
   createColumnHandler,
@@ -24,7 +26,7 @@ import {
   removeBoardMemberHandler,
   updateBoardMemberRoleHandler,
 } from '../controllers/membershipController';
-import { authenticateJWT } from '../middleware/authMiddleware';
+import { authenticateJWT, requireAdmin } from '../middleware/authMiddleware';
 
 const router = Router();
 
@@ -48,5 +50,7 @@ router.post('/boards/:boardId/members', addBoardMemberHandler);
 router.get('/boards/:boardId/members', listBoardMembersHandler);
 router.delete('/boards/:boardId/members/:userId', removeBoardMemberHandler);
 router.patch('/boards/:boardId/members/:userId', updateBoardMemberRoleHandler);
+router.get('/admin/boards', authenticateJWT, requireAdmin, listAllBoardsHandler);
+router.post('/admin/reset-demo', authenticateJWT, requireAdmin, resetDemoDataHandler);
 
 export default router;

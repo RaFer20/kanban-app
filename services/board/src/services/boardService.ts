@@ -1,4 +1,5 @@
 import prisma from '../prisma';
+import { ExecException } from 'child_process';
 
 /**
  * Creates a new board and automatically assigns the owner.
@@ -310,5 +311,37 @@ export async function getTasksForColumnPaginated(
     prisma.task.count({ where }),
   ]);
   return { items, total, limit, offset };
+}
+
+/**
+ * Fetches all boards (admin only).
+ * @returns Array of all board objects.
+ */
+export async function getAllBoards() {
+  return prisma.board.findMany();
+}
+
+/**
+ * Resets demo data by running the reset script.
+ * @returns Output of the reset script.
+ */
+export async function resetDemoData() {
+  return new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
+    const { exec } = require('child_process');
+    exec(
+      'npx ts-node scripts/resetDemoData.ts',
+      (
+        error: ExecException | null,
+        stdout: string,
+        stderr: string
+      ) => {
+        if (error) {
+          reject({ stdout, stderr });
+        } else {
+          resolve({ stdout, stderr });
+        }
+      }
+    );
+  });
 }
 
