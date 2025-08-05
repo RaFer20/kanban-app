@@ -8,6 +8,10 @@ import { BoardsPage } from './pages/BoardsPage';
 import { BoardDetailPage } from './pages/BoardDetailPage';
 import { authApi } from './lib/api';
 import { AdminPage } from "./pages/AdminPage";
+import { AdminUsersPage } from './pages/AdminUsersPage';
+import { AdminBoardsPage } from './pages/AdminBoardsPage'; 
+import { AdminSystemPage } from './pages/AdminSystemPage';
+import { BoardPermissionsPage } from './pages/BoardPermissionsPage';
 
 // Auth Context for managing user state
 interface User {
@@ -188,6 +192,26 @@ function App() {
               <Route path="/admin" element={
                 <AuthGuard>
                   <AdminPage />
+                </AuthGuard>
+              } />
+              <Route path="/admin/users" element={
+                <AuthGuard>
+                  <AdminUsersPage />
+                </AuthGuard>
+              } />
+              <Route path="/admin/boards" element={
+                <AuthGuard>
+                  <AdminBoardsPage />
+                </AuthGuard>
+              } />
+              <Route path="/admin/system" element={
+                <AuthGuard>
+                  <AdminSystemPage />
+                </AuthGuard>
+              } />
+              <Route path="/admin/boards/:boardId/permissions" element={
+                <AuthGuard>
+                  <BoardPermissionsPage />
                 </AuthGuard>
               } />
               <Route path="*" element={<CatchAllRedirect />} />
