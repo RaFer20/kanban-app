@@ -82,7 +82,23 @@ export const authApi = {
   },
 
   async getAllUsers() {
-    return apiRequest<Array<{ id: number; email: string }>>("/api/v1/admin/users");
+    return apiRequest<Array<{ 
+      id: number; 
+      email: string; 
+      role: string; 
+      created_at: string | null;
+    }>>("/api/v1/admin/users");
+  },
+
+  async updateUserRole(userId: number, role: string) {
+    return apiRequest<{ id: number; email: string; role: string }>(`/api/v1/admin/users/${userId}/role`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role }),
+    });
+  },
+
+  async get<T = any>(endpoint: string) {
+    return apiRequest<T>(`/api/v1${endpoint}`);
   },
 };
 
@@ -182,12 +198,51 @@ export const boardApi = {
   },
 
   async getAllBoardsAdmin() {
-    return apiRequest<Board[]>("/api/board/admin/boards");
+    return apiRequest<Array<{
+      id: number;
+      name: string;
+      ownerId: number;
+      createdAt: string;
+      updatedAt: string;
+      deletedAt?: string | null;
+    }>>("/api/board/admin/boards");
   },
   async resetDemoData() {
-    return apiRequest<{ message: string }>("/api/board/admin/reset-demo", {
-      method: "POST",
+    return apiRequest<{ message: string; output?: string }>("/api/board/admin/reset-demo", {
+      method: 'POST',
     });
+  },
+
+  async getBoardPermissions(boardId: number) {
+    return apiRequest<Array<{
+      userId: number;
+      email: string;
+      role: string;
+      permissions: string[];
+    }>>(`/api/board/boards/${boardId}/permissions`);
+  },
+
+  async updateMemberPermissions(boardId: number, userId: number, permissions: string[]) {
+    return apiRequest<{ message: string }>(`/api/board/boards/${boardId}/members/${userId}/permissions`, {
+      method: 'PATCH',
+      body: JSON.stringify({ permissions }),
+    });
+  },
+
+  async createCustomRole(boardId: number, roleName: string, permissions: string[]) {
+    return apiRequest<{ id: number; name: string; permissions: string[] }>(`/api/board/boards/${boardId}/roles`, {
+      method: 'POST',
+      body: JSON.stringify({ name: roleName, permissions }),
+    });
+  },
+
+  async getBoardRoles(boardId: number) {
+    return apiRequest<Array<{
+      id: number;
+      name: string;
+      permissions: string[];
+      isCustom: boolean;
+    }>>(`/api/board/boards/${boardId}/roles`);
   },
 };
 
