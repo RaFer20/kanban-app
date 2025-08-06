@@ -345,3 +345,25 @@ export async function resetDemoData() {
   });
 }
 
+/**
+ * Restores a soft-deleted board (and its columns/tasks).
+ * @param boardId - The ID of the board to restore.
+ * @returns The restored board object.
+ */
+export async function restoreBoard(boardId: number) {
+  return prisma.$transaction(async (tx) => {
+    await tx.board.update({
+      where: { id: boardId },
+      data: { deletedAt: null },
+    });
+    await tx.column.updateMany({
+      where: { boardId },
+      data: { deletedAt: null },
+    });
+    await tx.task.updateMany({
+      where: { column: { boardId } },
+      data: { deletedAt: null },
+    });
+  });
+}
+

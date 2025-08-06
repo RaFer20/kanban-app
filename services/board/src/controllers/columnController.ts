@@ -123,6 +123,8 @@ export async function getColumnsForBoardHandler(
   const { boardId } = req.params;
   const boardIdNum = Number(boardId);
   const userId = (req as AuthenticatedRequest).user?.id;
+  const userRole = (req as AuthenticatedRequest).user?.role;
+
   if (typeof userId !== 'number') {
     req.log?.warn('Unauthorized columns list attempt');
     res.status(401).json({ error: "Unauthorized" });
@@ -139,13 +141,28 @@ export async function getColumnsForBoardHandler(
     res.status(404).json({ error: 'Board not found' });
     return;
   }
+
+  // --- ADMIN BYPASS ---
+  if (userRole === 'admin') {
+    try {
+      const columns = await getColumnsForBoard(boardIdNum);
+      req.log?.info({ userId, boardId: boardIdNum }, 'Admin listed columns for board');
+      res.json(columns);
+      return;
+    } catch (error) {
+      req.log?.error({ err: error, userId, boardId: boardIdNum }, 'Failed to fetch columns');
+      res.status(500).json({ error: 'Failed to fetch columns' });
+      return;
+    }
+  }
+
+  // --- REGULAR RBAC ---
   const role = await getUserRoleForBoard(boardIdNum, userId);
   if (role == null) {
     req.log?.warn({ userId, boardId: boardIdNum }, 'No role found for getColumns');
     res.status(404).json({ error: 'Board not found' });
     return;
   }
-  // Member but not allowed: return 403 (shouldn't happen for listing, but for completeness)
   if (!['OWNER', 'EDITOR', 'VIEWER'].includes(role)) {
     req.log?.warn({ userId, boardId: boardIdNum, role }, 'Forbidden: insufficient role for getColumns');
     res.status(403).json({ error: 'Forbidden' });

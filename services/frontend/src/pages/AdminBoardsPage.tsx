@@ -32,6 +32,25 @@ export function AdminBoardsPage() {
     }
   }
 
+  async function handleDelete(boardId: number) {
+    if (!window.confirm("Are you sure you want to delete this board?")) return;
+    try {
+      await boardApi.deleteBoard(boardId);
+      fetchBoards(); // Refresh list
+    } catch (err: any) {
+      setError(err.message || "Failed to delete board");
+    }
+  }
+
+  async function handleRestore(boardId: number) {
+    try {
+      await boardApi.restoreBoard(boardId);
+      fetchBoards(); // Refresh list
+    } catch (err: any) {
+      setError(err.message || "Failed to restore board");
+    }
+  }
+
   if (loading) return <div className="p-8">Loading boards...</div>;
   if (error) return <div className="p-8 text-red-600">Error: {error}</div>;
 
@@ -51,7 +70,6 @@ export function AdminBoardsPage() {
         <div className="px-6 py-4 bg-gray-50 border-b">
           <h2 className="text-lg font-semibold text-gray-800">All Boards ({boards.length})</h2>
         </div>
-        
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
@@ -107,6 +125,22 @@ export function AdminBoardsPage() {
                     >
                       View Board
                     </Link>
+                    {!board.deletedAt && (
+                      <button
+                        className="ml-4 text-red-600 hover:text-red-900"
+                        onClick={() => handleDelete(board.id)}
+                      >
+                        Delete
+                      </button>
+                    )}
+                    {board.deletedAt && (
+                      <button
+                        className="ml-4 text-green-600 hover:text-green-900"
+                        onClick={() => handleRestore(board.id)}
+                      >
+                        Restore
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
