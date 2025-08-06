@@ -6,7 +6,8 @@ import {
   getBoardsPaginated,
   getOwnedBoardsPaginated,
   getAllBoards,
-  resetDemoData
+  resetDemoData,
+  restoreBoard
 } from '../services/boardService';
 import { createBoardSchema } from "../schemas/boardSchema";
 import { AuthenticatedRequest } from "../types/express";
@@ -162,17 +163,22 @@ export async function deleteBoardHandler(
     res.status(404).json({ error: 'Board not found' });
     return;
   }
+  const isAdmin = req.user?.role === 'admin';
   const role = await getUserRoleForBoard(boardId, userId);
-  if (role == null) {
-    req.log?.warn({ userId, boardId }, 'User not a member of board for delete');
-    res.status(404).json({ error: "Board not found" });
-    return;
+
+  if (!isAdmin) {
+    if (role == null) {
+      req.log?.warn({ userId, boardId }, 'User not a member of board for delete');
+      res.status(404).json({ error: "Board not found" });
+      return;
+    }
+    if (role !== 'OWNER') {
+      req.log?.warn({ userId, boardId, role }, 'Insufficient role for board delete');
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
   }
-  if (!['OWNER'].includes(role)) {
-    req.log?.warn({ userId, boardId, role }, 'Insufficient role for board delete');
-    res.status(403).json({ error: "Forbidden" });
-    return;
-  }
+  // If admin, skip checks and allow deletion
   try {
     await deleteBoard(boardId);
     req.log?.info({ userId, boardId }, 'Board deleted');
@@ -297,5 +303,44 @@ export async function resetDemoDataHandler(req: AuthenticatedRequest, res: Respo
     res.json({ message: 'Demo data reset', output: stdout });
   } catch (err: any) {
     res.status(500).json({ error: err.stderr || 'Failed to reset demo data' });
+  }
+}
+
+/**
+ * @openapi
+ * /api/admin/boards/{boardId}/restore:
+ *   post:
+ *     summary: Restore a soft-deleted board (admin only)
+ *     parameters:
+ *       - in: path
+ *         name: boardId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Board restored
+ *       404:
+ *         description: Board not found
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ */
+export async function restoreBoardHandler(
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> {
+  const boardId = Number(req.params.boardId);
+  const isAdmin = req.user?.role === 'admin';
+  if (!isAdmin) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+  try {
+    await restoreBoard(boardId);
+    res.json({ message: "Board restored successfully" });
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to restore board" });
   }
 }

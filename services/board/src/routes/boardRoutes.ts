@@ -7,6 +7,7 @@ import {
   getOwnedBoardsPaginatedHandler,
   listAllBoardsHandler,
   resetDemoDataHandler,
+  restoreBoardHandler,
 } from '../controllers/boardController';
 import {
   createColumnHandler,
@@ -52,5 +53,6 @@ router.delete('/boards/:boardId/members/:userId', removeBoardMemberHandler);
 router.patch('/boards/:boardId/members/:userId', updateBoardMemberRoleHandler);
 router.get('/admin/boards', authenticateJWT, requireAdmin, listAllBoardsHandler);
 router.post('/admin/reset-demo', authenticateJWT, requireAdmin, resetDemoDataHandler);
+router.post('/admin/boards/:boardId/restore', authenticateJWT, requireAdmin, restoreBoardHandler);
 
 export default router;

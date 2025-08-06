@@ -244,6 +244,20 @@ export const boardApi = {
       isCustom: boolean;
     }>>(`/api/board/boards/${boardId}/roles`);
   },
+
+  async deleteBoard(boardId: number) {
+    return apiRequest<{ message: string }>(
+      `/api/board/boards/${boardId}`,
+      { method: "DELETE" }
+    );
+  },
+
+  async restoreBoard(boardId: number) {
+    return apiRequest<{ message: string }>(
+      `/api/board/admin/boards/${boardId}/restore`,
+      { method: "POST" }
+    );
+  },
 };
 
 export { ApiError };
