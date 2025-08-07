@@ -1,4 +1,5 @@
 import prisma from '../prisma';
+import { ExecException } from 'child_process';
 
 /**
  * Creates a new board and automatically assigns the owner.
@@ -9,7 +10,10 @@ import prisma from '../prisma';
 export async function createBoardWithOwner(name: string, userId: number) {
   return prisma.$transaction(async (tx) => {
     const board = await tx.board.create({
-      data: { name },
+      data: { 
+        name,
+        ownerId: userId,
+       },
     });
     await tx.boardMembership.create({
       data: {
@@ -45,6 +49,28 @@ export async function getBoardsPaginated(userId: number, limit = 10, offset = 0)
         memberships: { some: { userId } },
         deletedAt: null,
       },
+    }),
+  ]);
+  return { items, total, limit, offset };
+}
+
+/**
+ * Fetches a paginated list of boards owned by a specific user.
+ * @param userId - The ID of the user.
+ * @param limit - Max number of boards to return.
+ * @param offset - How many boards to skip (for pagination).
+ * @returns An object with items (boards) and total count.
+ */
+export async function getOwnedBoardsPaginated(userId: number, limit = 10, offset = 0) {
+  const [items, total] = await Promise.all([
+    prisma.board.findMany({
+      where: { ownerId: userId, deletedAt: null },
+      orderBy: { id: 'asc' },
+      skip: offset,
+      take: limit,
+    }),
+    prisma.board.count({
+      where: { ownerId: userId, deletedAt: null },
     }),
   ]);
   return { items, total, limit, offset };
@@ -120,6 +146,18 @@ export async function getColumnsForBoard(boardId: number) {
   return prisma.column.findMany({
     where: { boardId, deletedAt: null },
     orderBy: { order: 'asc' },
+    include: {
+      tasks: {
+        where: { deletedAt: null },
+        orderBy: { order: 'asc' },
+        select: {
+          id: true,
+          title: true,
+          order: true,
+          description: true,
+        }
+      }
+    }
   });
 }
 
@@ -237,7 +275,11 @@ export async function deleteTask(taskId: number) {
  */
 export async function addBoardMember(boardId: number, userId: number, role: 'OWNER' | 'EDITOR' | 'VIEWER') {
   return prisma.boardMembership.create({
-    data: { boardId, userId, role },
+    data: {
+      boardId,
+      userId,
+      role,
+    },
   });
 }
 
@@ -269,5 +311,59 @@ export async function getTasksForColumnPaginated(
     prisma.task.count({ where }),
   ]);
   return { items, total, limit, offset };
+}
+
+/**
+ * Fetches all boards (admin only).
+ * @returns Array of all board objects.
+ */
+export async function getAllBoards() {
+  return prisma.board.findMany();
+}
+
+/**
+ * Resets demo data by running the reset script.
+ * @returns Output of the reset script.
+ */
+export async function resetDemoData() {
+  return new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
+    const { exec } = require('child_process');
+    exec(
+      'npx ts-node scripts/resetDemoData.ts',
+      (
+        error: ExecException | null,
+        stdout: string,
+        stderr: string
+      ) => {
+        if (error) {
+          reject({ stdout, stderr });
+        } else {
+          resolve({ stdout, stderr });
+        }
+      }
+    );
+  });
+}
+
+/**
+ * Restores a soft-deleted board (and its columns/tasks).
+ * @param boardId - The ID of the board to restore.
+ * @returns The restored board object.
+ */
+export async function restoreBoard(boardId: number) {
+  return prisma.$transaction(async (tx) => {
+    await tx.board.update({
+      where: { id: boardId },
+      data: { deletedAt: null },
+    });
+    await tx.column.updateMany({
+      where: { boardId },
+      data: { deletedAt: null },
+    });
+    await tx.task.updateMany({
+      where: { column: { boardId } },
+      data: { deletedAt: null },
+    });
+  });
 }
 

@@ -130,36 +130,33 @@ services:
     expose:
       - "4317"
 
-  # frontend:
-    # Placeholder for your React frontend service
-    # Uncomment and configure when you add your frontend
-    # build:
-    #   context: ./services/frontend
-    #   dockerfile: Dockerfile
-    # container_name: frontend
-    # working_dir: /app
-    # volumes:
-    #   - ./services/frontend:/app
-    #   - ./services/frontend/build:/usr/share/nginx/html:ro
-    # environment:
-    #   - NODE_ENV=production
-    # ports:
-    #   - "5173:5173"
-    # command: npm run build
-
-  nginx:
-    image: nginx:1.25
-    container_name: nginx
-    ports:
-      - "80:80"
+  frontend:
+    build:
+      context: ./services/frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    working_dir: /app
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      # Adjust this path when you add your frontend build output
-      - ./services/frontend/build:/usr/share/nginx/html:ro # <-- Placeholder for React build
+      - ./services/frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    command: npm run dev
     depends_on:
       - auth
       - board
-      # - frontend # Uncomment when frontend is added
+
+  nginx:
+    build:
+      context: ./services/frontend
+      dockerfile: Dockerfile
+    container_name: nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - auth
+      - board
+      - frontend
 
 volumes:
   auth-db-data:

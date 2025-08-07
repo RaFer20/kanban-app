@@ -1,9 +1,14 @@
 import { Request, Response } from 'express';
-import { createTask, getTasksForColumn, updateTask, deleteTask, getUserRoleForBoard, getTasksForColumnPaginated } from '../services/boardService';
+import {
+  createTask,
+  getTasksForColumn,
+  updateTask,
+  deleteTask,
+  getUserRoleForBoard,
+  getTasksForColumnPaginated
+} from '../services/boardService';
 import { createTaskSchema, updateTaskSchema } from "../schemas/taskSchema";
 import { AuthenticatedRequest } from "../types/express";
-import { requireRole } from "../utils/requireRole";
-import prisma from '../prisma';
 import { tasksCreated } from '../metrics';
 import { ensureTaskActive, ensureColumnActive } from '../utils/entityChecks';
 
@@ -80,12 +85,16 @@ export async function createTaskHandler(
     return;
   }
   const role = await getUserRoleForBoard(column.boardId, userId);
-  if (!role) {
-    req.log?.warn({ userId, columnId: columnIdNum }, 'No role found for createTask');
+  if (role == null) {
+    req.log?.warn({ userId, boardId: column.boardId }, 'No role found for createTask');
     res.status(404).json({ error: 'Column not found' });
     return;
   }
-  if (!requireRole(['OWNER', 'EDITOR'], role, res)) return;
+  if (!['OWNER', 'EDITOR'].includes(role)) {
+    req.log?.warn({ userId, boardId: column.boardId, role }, 'Forbidden: insufficient role for createTask');
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
   try {
     const { title, description, assigneeId } = parseResult.data;
     const task = await createTask(title, columnIdNum, description, assigneeId);
@@ -149,39 +158,37 @@ export async function getTasksForColumnHandler(
     return;
   }
 
-  // Validate columnId
   if (isNaN(columnId)) {
     res.status(400).json({ error: 'Column ID must be a number' });
     return;
   }
 
-  // Find the column and its board
   const column = await ensureColumnActive(columnId);
   if (!column) {
     res.status(404).json({ error: "Column not found" });
     return;
   }
 
-  // Check membership/role
   const role = await getUserRoleForBoard(column.boardId, userId);
-  if (!role) {
-    // Hide existence from non-members
+  if (role == null) {
     res.status(404).json({ error: "Column not found" });
     return;
   }
+  // Member but not allowed: return 403 (shouldn't happen for listing, but for completeness)
+  if (!['OWNER', 'EDITOR', 'VIEWER'].includes(role)) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
 
-  // Parse query params for pagination/filtering
   const limit = req.query.limit ? Math.min(parseInt(req.query.limit as string), 50) : undefined;
   const offset = req.query.offset ? parseInt(req.query.offset as string) : undefined;
   const status = req.query.status as string | undefined;
   const assigneeId = req.query.assigneeId ? Number(req.query.assigneeId) : undefined;
 
   if (limit !== undefined || offset !== undefined || status || assigneeId) {
-    // Use paginated/filtering logic
     const result = await getTasksForColumnPaginated(columnId, { status, assigneeId }, limit, offset);
     res.json(result);
   } else {
-    // Return all tasks
     const items = await getTasksForColumn(columnId);
     res.json(items);
   }
@@ -252,29 +259,28 @@ export async function updateTaskHandler(req: Request, res: Response): Promise<vo
   }
   const task = await ensureTaskActive(taskIdNum);
   if (!task) {
-    req.log?.warn({ userId, taskId: taskIdNum }, 'Task not found or deleted for update');
+    req.log?.warn({ userId, taskId: taskIdNum }, 'Task not found or deleted');
     res.status(404).json({ error: 'Task not found' });
     return;
   }
-  const column = await ensureColumnActive(task.columnId);
-  if (!column) {
-    req.log?.warn({ userId, columnId: task.columnId }, 'Column not found or deleted for updateTask');
-    res.status(404).json({ error: 'Column not found' });
-    return;
-  }
-  const role = await getUserRoleForBoard(column.boardId, userId);
-  if (!role) {
+  const role = await getUserRoleForBoard(task.boardId, userId);
+  if (role == null) {
     req.log?.warn({ userId, taskId: taskIdNum }, 'No role found for updateTask');
     res.status(404).json({ error: 'Task not found' });
     return;
   }
-  if (!requireRole(['OWNER', 'EDITOR'], role, res)) return;
+  // Member but not allowed: return 403
+  if (!['OWNER', 'EDITOR'].includes(role)) {
+    req.log?.warn({ userId, taskId: taskIdNum, role }, 'Forbidden: insufficient role for updateTask');
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
   try {
     const updatedTask = await updateTask(taskIdNum, parseResult.data);
-    req.log?.info({ userId, boardId: column.boardId, columnId: column.id, taskId: taskIdNum }, 'Task updated');
+    req.log?.info({ userId, boardId: task.boardId, columnId: task.columnId, taskId: taskIdNum }, 'Task updated');
     res.json(updatedTask);
   } catch (error: any) {
-    req.log?.error({ err: error, userId, boardId: column.boardId, columnId: column.id, taskId: taskIdNum }, 'Failed to update task');
+    req.log?.error({ err: error, userId, boardId: task.boardId, columnId: task.columnId, taskId: taskIdNum }, 'Failed to update task');
     if (error?.code === 'P2025') {
       res.status(404).json({ error: 'Task not found' });
       return;
@@ -336,12 +342,17 @@ export async function deleteTaskHandler(req: Request, res: Response): Promise<vo
     return;
   }
   const role = await getUserRoleForBoard(column.boardId, userId);
-  if (!role) {
+  if (role == null) {
     req.log?.warn({ userId, taskId: taskIdNum }, 'No role found for deleteTask');
     res.status(404).json({ error: 'Task not found' });
     return;
   }
-  if (!requireRole(['OWNER', 'EDITOR'], role, res)) return;
+  // Member but not allowed: return 403
+  if (!['OWNER', 'EDITOR'].includes(role)) {
+    req.log?.warn({ userId, taskId: taskIdNum, role }, 'Forbidden: insufficient role for deleteTask');
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
   try {
     await deleteTask(taskIdNum);
     req.log?.info({ userId, boardId: column.boardId, columnId: column.id, taskId: taskIdNum }, 'Task deleted');

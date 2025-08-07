@@ -1,5 +1,6 @@
 import './otel';
 import express from "express";
+import cookieParser from "cookie-parser";
 import boardRoutes from "./routes/boardRoutes";
 import { setupSwagger } from "./swagger";
 import { authenticateJWT } from "./middleware/authMiddleware";
@@ -16,6 +17,8 @@ declare module 'express-serve-static-core' {
 
 const app = express();
 app.use(express.json());
+app.use(cookieParser());
+
 
 // Request ID middleware
 app.use((req, res, next) => {

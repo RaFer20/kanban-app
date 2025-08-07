@@ -11,6 +11,11 @@ export async function ensureColumnActive(columnId: number) {
 }
 
 export async function ensureTaskActive(taskId: number) {
-  const task = await prisma.task.findUnique({ where: { id: taskId } });
-  return task && !task.deletedAt ? task : null;
+  return prisma.task.findUnique({
+    where: { id: taskId },
+    include: { column: { select: { boardId: true } } }
+  }).then(task => {
+    if (!task || task.deletedAt) return null;
+    return { ...task, boardId: task.column.boardId };
+  });
 }

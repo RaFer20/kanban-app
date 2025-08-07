@@ -8,6 +8,7 @@ These are used for request validation and response serialization in the Auth Ser
 from pydantic import BaseModel, EmailStr, ConfigDict
 from typing import Literal
 from .enums import UserRole
+from datetime import datetime
 
 
 class UserBase(BaseModel):
@@ -38,6 +39,7 @@ class UserOut(UserBase):
     """
     id: int
     role: UserRole
+    created_at: datetime | None
     model_config = ConfigDict(from_attributes=True)
 
 
