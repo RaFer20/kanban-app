@@ -100,6 +100,15 @@ export const authApi = {
   async get<T = any>(endpoint: string) {
     return apiRequest<T>(`/api/v1${endpoint}`);
   },
+
+  async deleteBoardTestUsers() {
+    const res = await fetch("/api/v1/admin/delete-boardtest-users", {
+      method: "DELETE",
+      credentials: "include",
+    });
+    if (!res.ok) throw new Error(await res.text() || "Failed to delete test users");
+    return await res.json();
+  },
 };
 
 // Board API

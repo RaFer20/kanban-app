@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { boardApi } from "../lib/api";
+import { authApi, boardApi } from "../lib/api";
 
 export function AdminSystemPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [resetOutput, setResetOutput] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const navigate = useNavigate();
 
   async function handleResetDemo() {
@@ -39,6 +40,25 @@ export function AdminSystemPage() {
 
   async function handleViewBoards() {
     navigate('/admin/boards');
+  }
+
+  async function handleDeleteBoardTestUsers() {
+    if (!window.confirm('Are you sure you want to delete all @boardtests.com users? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      setError(null);
+      setMessage(null);
+
+      const response = await authApi.deleteBoardTestUsers();
+      setMessage(response.message || 'Test users deleted successfully');
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete test users');
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -135,6 +155,16 @@ export function AdminSystemPage() {
                 </div>
               </div>
             )}
+          </div>
+
+          <div className="mt-6">
+            <button
+              onClick={handleDeleteBoardTestUsers}
+              disabled={deleting}
+              className="w-full px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {deleting ? "Deleting..." : "Delete @boardtests.com Users"}
+            </button>
           </div>
         </div>
       </div>
