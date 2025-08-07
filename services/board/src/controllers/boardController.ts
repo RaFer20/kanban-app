@@ -3,7 +3,11 @@ import {
   createBoardWithOwner,
   getUserRoleForBoard, 
   deleteBoard,
-  getBoardsPaginated
+  getBoardsPaginated,
+  getOwnedBoardsPaginated,
+  getAllBoards,
+  resetDemoData,
+  restoreBoard
 } from '../services/boardService';
 import { createBoardSchema } from "../schemas/boardSchema";
 import { AuthenticatedRequest } from "../types/express";
@@ -11,6 +15,7 @@ import { requireRole } from "../utils/requireRole";
 import prisma from '../prisma';
 import { boardsCreated } from '../metrics';
 import { ensureBoardActive } from '../utils/entityChecks';
+import { exec } from 'child_process';
 
 /**
  * @openapi
@@ -158,16 +163,22 @@ export async function deleteBoardHandler(
     res.status(404).json({ error: 'Board not found' });
     return;
   }
+  const isAdmin = req.user?.role === 'admin';
   const role = await getUserRoleForBoard(boardId, userId);
-  if (!role) {
-    req.log?.warn({ userId, boardId }, 'User not a member of board for delete');
-    res.status(404).json({ error: "Board not found" });
-    return;
+
+  if (!isAdmin) {
+    if (role == null) {
+      req.log?.warn({ userId, boardId }, 'User not a member of board for delete');
+      res.status(404).json({ error: "Board not found" });
+      return;
+    }
+    if (role !== 'OWNER') {
+      req.log?.warn({ userId, boardId, role }, 'Insufficient role for board delete');
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
   }
-  if (!requireRole(['OWNER'], role, res)) {
-    req.log?.warn({ userId, boardId, role }, 'Insufficient role for board delete');
-    return;
-  }
+  // If admin, skip checks and allow deletion
   try {
     await deleteBoard(boardId);
     req.log?.info({ userId, boardId }, 'Board deleted');
@@ -175,5 +186,161 @@ export async function deleteBoardHandler(
   } catch (error: any) {
     req.log?.error({ err: error, userId, boardId }, 'Failed to delete board');
     res.status(500).json({ error: 'Failed to delete board' });
+  }
+}
+
+/**
+ * @openapi
+ * /api/boards/{boardId}:
+ *   get:
+ *     summary: Get a specific board by ID
+ *     parameters:
+ *       - in: path
+ *         name: boardId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Board details
+ *       404:
+ *         description: Board not found
+ *       401:
+ *         description: Unauthorized
+ */
+export async function getBoardHandler(
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> {
+  const boardId = Number(req.params.boardId);
+  const userId = req.user?.id;
+  if (typeof userId !== 'number') {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const board = await ensureBoardActive(boardId);
+  if (!board) {
+    res.status(404).json({ error: "Board not found" });
+    return;
+  }
+  const role = await getUserRoleForBoard(boardId, userId);
+  if (role == null) {
+    res.status(404).json({ error: "Board not found" });
+    return;
+  }
+  res.json(board);
+}
+
+/**
+ * @openapi
+ * /api/boards/owned:
+ *   get:
+ *     summary: List all boards owned by the user with pagination
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: offset
+ *         required: false
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: List of owned boards
+ */
+export async function getOwnedBoardsPaginatedHandler(
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> {
+  const userId = req.user?.id;
+  if (typeof userId !== 'number') {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const limit = Math.min(parseInt(req.query.limit as string) || 10, 50);
+  const offset = parseInt(req.query.offset as string) || 0;
+  try {
+    const result = await getOwnedBoardsPaginated(userId, limit, offset);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch owned boards' });
+  }
+}
+
+/**
+ * @openapi
+ * /api/admin/boards:
+ *   get:
+ *     summary: List all boards (admin only)
+ *     responses:
+ *       200:
+ *         description: List of all boards
+ */
+export async function listAllBoardsHandler(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const boards = await getAllBoards();
+    res.json(boards);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch boards' });
+  }
+}
+
+/**
+ * @openapi
+ * /api/admin/reset-demo:
+ *   post:
+ *     summary: Reset demo data (admin only)
+ *     responses:
+ *       200:
+ *         description: Demo data reset
+ */
+export async function resetDemoDataHandler(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const { stdout } = await resetDemoData();
+    res.json({ message: 'Demo data reset', output: stdout });
+  } catch (err: any) {
+    res.status(500).json({ error: err.stderr || 'Failed to reset demo data' });
+  }
+}
+
+/**
+ * @openapi
+ * /api/admin/boards/{boardId}/restore:
+ *   post:
+ *     summary: Restore a soft-deleted board (admin only)
+ *     parameters:
+ *       - in: path
+ *         name: boardId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Board restored
+ *       404:
+ *         description: Board not found
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ */
+export async function restoreBoardHandler(
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> {
+  const boardId = Number(req.params.boardId);
+  const isAdmin = req.user?.role === 'admin';
+  if (!isAdmin) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+  try {
+    await restoreBoard(boardId);
+    res.json({ message: "Board restored successfully" });
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to restore board" });
   }
 }

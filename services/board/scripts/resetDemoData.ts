@@ -20,6 +20,7 @@ async function main() {
   await prisma.board.create({
     data: {
       name: "Guest's Demo Board",
+      ownerId: guestUserId,
       memberships: {
         create: {
           userId: guestUserId,
@@ -74,6 +75,7 @@ async function main() {
   await prisma.board.create({
     data: {
       name: "Shared Board (Guest is Viewer)",
+      ownerId: bobUserId,
       memberships: {
         create: [
           { userId: bobUserId, role: 'OWNER' },

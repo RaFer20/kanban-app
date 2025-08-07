@@ -51,7 +51,7 @@ beforeAll(async () => {
   const getUserId = async (token: string) => {
     const res = await request(authServiceUrl)
       .get('/api/v1/me')
-      .set('Authorization', `Bearer ${token}`);
+      .set('Cookie', [`access_token=${token}`]);
     return res.body.id;
   };
 
@@ -65,43 +65,43 @@ beforeAll(async () => {
   // Owner creates a board and column
   const boardRes = await request(app)
     .post('/api/boards')
-    .set('Authorization', `Bearer ${ownerToken}`)
+    .set('Cookie', [`access_token=${ownerToken}`])
     .send({ name: 'RBAC Test Board' });
   boardId = boardRes.body.id;
 
   const colRes = await request(app)
     .post(`/api/boards/${boardId}/columns`)
-    .set('Authorization', `Bearer ${ownerToken}`)
+    .set('Cookie', [`access_token=${ownerToken}`])
     .send({ name: 'To Do' });
   columnId = colRes.body.id;
 
   // Owner invites editor, viewer, and removedMember
   await request(app)
     .post(`/api/boards/${boardId}/members`)
-    .set('Authorization', `Bearer ${ownerToken}`)
+    .set('Cookie', [`access_token=${ownerToken}`])
     .send({ userId: editorId, role: 'EDITOR' });
 
   await request(app)
     .post(`/api/boards/${boardId}/members`)
-    .set('Authorization', `Bearer ${ownerToken}`)
+    .set('Cookie', [`access_token=${ownerToken}`])
     .send({ userId: viewerId, role: 'VIEWER' });
 
   await request(app)
     .post(`/api/boards/${boardId}/members`)
-    .set('Authorization', `Bearer ${ownerToken}`)
+    .set('Cookie', [`access_token=${ownerToken}`])
     .send({ userId: removedMemberId, role: 'VIEWER' });
 
   // Create a task for task tests
   const taskRes = await request(app)
     .post(`/api/columns/${columnId}/tasks`)
-    .set('Authorization', `Bearer ${ownerToken}`)
+    .set('Cookie', [`access_token=${ownerToken}`])
     .send({ title: 'Task for RBAC' });
   taskId = taskRes.body.id;
 
   // Remove removedMember from the board
   await request(app)
     .delete(`/api/boards/${boardId}/members/${removedMemberId}`)
-    .set('Authorization', `Bearer ${ownerToken}`);
+    .set('Cookie', [`access_token=${ownerToken}`]);
 });
 
 afterAll(async () => {
@@ -116,14 +116,14 @@ describe('RBAC', () => {
     it('EDITOR cannot delete the board', async () => {
       const res = await request(app)
         .delete(`/api/boards/${boardId}`)
-        .set('Authorization', `Bearer ${editorToken}`);
+        .set('Cookie', [`access_token=${editorToken}`]);
       expect([403, 404]).toContain(res.statusCode);
     });
 
     it('VIEWER cannot create columns', async () => {
       const res = await request(app)
         .post(`/api/boards/${boardId}/columns`)
-        .set('Authorization', `Bearer ${viewerToken}`)
+        .set('Cookie', [`access_token=${viewerToken}`])
         .send({ name: 'Not Allowed' });
       expect(res.statusCode).toBe(403);
     });
@@ -131,7 +131,7 @@ describe('RBAC', () => {
     it('EDITOR can create columns', async () => {
       const res = await request(app)
         .post(`/api/boards/${boardId}/columns`)
-        .set('Authorization', `Bearer ${editorToken}`)
+        .set('Cookie', [`access_token=${editorToken}`])
         .send({ name: 'Editor Column' });
       expect([201, 409]).toContain(res.statusCode);
     });
@@ -139,21 +139,21 @@ describe('RBAC', () => {
     it('VIEWER can list columns', async () => {
       const res = await request(app)
         .get(`/api/boards/${boardId}/columns`)
-        .set('Authorization', `Bearer ${viewerToken}`);
+        .set('Cookie', [`access_token=${viewerToken}`]);
       expect(res.statusCode).toBe(200);
     });
 
     it('Non-member cannot access board columns', async () => {
       const res = await request(app)
         .get(`/api/boards/${boardId}/columns`)
-        .set('Authorization', `Bearer ${removedMemberToken}`);
+        .set('Cookie', [`access_token=${removedMemberToken}`]);
       expect(res.statusCode).toBe(404);
     });
 
     it('OWNER can add a member', async () => {
       const res = await request(app)
         .post(`/api/boards/${boardId}/members`)
-        .set('Authorization', `Bearer ${ownerToken}`)
+        .set('Cookie', [`access_token=${ownerToken}`])
         .send({ userId: addedMemberId, role: 'VIEWER' });
       expect([201, 400]).toContain(res.statusCode);
     });
@@ -161,7 +161,7 @@ describe('RBAC', () => {
     it('EDITOR cannot add a member', async () => {
       const res = await request(app)
         .post(`/api/boards/${boardId}/members`)
-        .set('Authorization', `Bearer ${editorToken}`)
+        .set('Cookie', [`access_token=${editorToken}`])
         .send({ userId: removedMemberId, role: 'VIEWER' });
       expect(res.statusCode).toBe(403);
     });
@@ -169,7 +169,7 @@ describe('RBAC', () => {
     it('OWNER can update a column', async () => {
       const res = await request(app)
         .patch(`/api/columns/${columnId}`)
-        .set('Authorization', `Bearer ${ownerToken}`)
+        .set('Cookie', [`access_token=${ownerToken}`])
         .send({ name: 'Updated by Owner' });
       expect(res.statusCode).toBe(200);
       expect(res.body.name).toBe('Updated by Owner');
@@ -178,7 +178,7 @@ describe('RBAC', () => {
     it('EDITOR can update a column', async () => {
       const res = await request(app)
         .patch(`/api/columns/${columnId}`)
-        .set('Authorization', `Bearer ${editorToken}`)
+        .set('Cookie', [`access_token=${editorToken}`])
         .send({ name: 'Updated by Editor' });
       expect(res.statusCode).toBe(200);
       expect(res.body.name).toBe('Updated by Editor');
@@ -187,7 +187,7 @@ describe('RBAC', () => {
     it('VIEWER cannot update a column', async () => {
       const res = await request(app)
         .patch(`/api/columns/${columnId}`)
-        .set('Authorization', `Bearer ${viewerToken}`)
+        .set('Cookie', [`access_token=${viewerToken}`])
         .send({ name: 'Should Fail' });
       expect(res.statusCode).toBe(403);
     });
@@ -195,46 +195,46 @@ describe('RBAC', () => {
     it('OWNER can delete a column', async () => {
       const createRes = await request(app)
         .post(`/api/boards/${boardId}/columns`)
-        .set('Authorization', `Bearer ${ownerToken}`)
+        .set('Cookie', [`access_token=${ownerToken}`])
         .send({ name: 'DeleteMe' });
       const colId = createRes.body.id;
 
       const res = await request(app)
         .delete(`/api/columns/${colId}`)
-        .set('Authorization', `Bearer ${ownerToken}`);
+        .set('Cookie', [`access_token=${ownerToken}`]);
       expect(res.statusCode).toBe(200);
     });
 
     it('EDITOR can delete a column', async () => {
       const createRes = await request(app)
         .post(`/api/boards/${boardId}/columns`)
-        .set('Authorization', `Bearer ${ownerToken}`)
+        .set('Cookie', [`access_token=${ownerToken}`])
         .send({ name: 'DeleteMeEditor' });
       const colId = createRes.body.id;
 
       const res = await request(app)
         .delete(`/api/columns/${colId}`)
-        .set('Authorization', `Bearer ${editorToken}`);
+        .set('Cookie', [`access_token=${editorToken}`]);
       expect(res.statusCode).toBe(200);
     });
 
     it('VIEWER cannot delete a column', async () => {
       const createRes = await request(app)
         .post(`/api/boards/${boardId}/columns`)
-        .set('Authorization', `Bearer ${ownerToken}`)
+        .set('Cookie', [`access_token=${ownerToken}`])
         .send({ name: 'DeleteMeViewer' });
       const colId = createRes.body.id;
 
       const res = await request(app)
         .delete(`/api/columns/${colId}`)
-        .set('Authorization', `Bearer ${viewerToken}`);
+        .set('Cookie', [`access_token=${viewerToken}`]);
       expect(res.statusCode).toBe(403);
     });
 
     it('OWNER can update a task', async () => {
       const res = await request(app)
         .patch(`/api/tasks/${taskId}`)
-        .set('Authorization', `Bearer ${ownerToken}`)
+        .set('Cookie', [`access_token=${ownerToken}`])
         .send({ title: 'Updated by Owner' });
       expect(res.statusCode).toBe(200);
       expect(res.body.title).toBe('Updated by Owner');
@@ -243,7 +243,7 @@ describe('RBAC', () => {
     it('EDITOR can update a task', async () => {
       const res = await request(app)
         .patch(`/api/tasks/${taskId}`)
-        .set('Authorization', `Bearer ${editorToken}`)
+        .set('Cookie', [`access_token=${editorToken}`])
         .send({ title: 'Updated by Editor' });
       expect(res.statusCode).toBe(200);
       expect(res.body.title).toBe('Updated by Editor');
@@ -252,7 +252,7 @@ describe('RBAC', () => {
     it('VIEWER cannot update a task', async () => {
       const res = await request(app)
         .patch(`/api/tasks/${taskId}`)
-        .set('Authorization', `Bearer ${viewerToken}`)
+        .set('Cookie', [`access_token=${viewerToken}`])
         .send({ title: 'Should Fail' });
       expect(res.statusCode).toBe(403);
     });
@@ -260,39 +260,39 @@ describe('RBAC', () => {
     it('OWNER can delete a task', async () => {
       const createRes = await request(app)
         .post(`/api/columns/${columnId}/tasks`)
-        .set('Authorization', `Bearer ${ownerToken}`)
+        .set('Cookie', [`access_token=${ownerToken}`])
         .send({ title: 'DeleteTaskOwner' });
       const tId = createRes.body.id;
 
       const res = await request(app)
         .delete(`/api/tasks/${tId}`)
-        .set('Authorization', `Bearer ${ownerToken}`);
+        .set('Cookie', [`access_token=${ownerToken}`]);
       expect(res.statusCode).toBe(200);
     });
 
     it('EDITOR can delete a task', async () => {
       const createRes = await request(app)
         .post(`/api/columns/${columnId}/tasks`)
-        .set('Authorization', `Bearer ${ownerToken}`)
+        .set('Cookie', [`access_token=${ownerToken}`])
         .send({ title: 'DeleteTaskEditor' });
       const tId = createRes.body.id;
 
       const res = await request(app)
         .delete(`/api/tasks/${tId}`)
-        .set('Authorization', `Bearer ${editorToken}`);
+        .set('Cookie', [`access_token=${editorToken}`]);
       expect(res.statusCode).toBe(200);
     });
 
     it('VIEWER cannot delete a task', async () => {
       const createRes = await request(app)
         .post(`/api/columns/${columnId}/tasks`)
-        .set('Authorization', `Bearer ${ownerToken}`)
+        .set('Cookie', [`access_token=${ownerToken}`])
         .send({ title: 'DeleteTaskViewer' });
       const tId = createRes.body.id;
 
       const res = await request(app)
         .delete(`/api/tasks/${tId}`)
-        .set('Authorization', `Bearer ${viewerToken}`);
+        .set('Cookie', [`access_token=${viewerToken}`]);
       expect(res.statusCode).toBe(403);
     });
 
@@ -300,13 +300,13 @@ describe('RBAC', () => {
       // Remove the viewer
       const res = await request(app)
         .delete(`/api/boards/${boardId}/members/${viewerId}`)
-        .set('Authorization', `Bearer ${ownerToken}`);
+        .set('Cookie', [`access_token=${ownerToken}`]);
       expect([200, 404]).toContain(res.statusCode);
 
       // Now viewer should get 404 on board access
       const failRes = await request(app)
         .get(`/api/boards/${boardId}/columns`)
-        .set('Authorization', `Bearer ${viewerToken}`);
+        .set('Cookie', [`access_token=${viewerToken}`]);
       expect(failRes.statusCode).toBe(404);
     });
 
@@ -314,19 +314,19 @@ describe('RBAC', () => {
       // Create a board
       const boardRes = await request(app)
         .post('/api/boards')
-        .set('Authorization', `Bearer ${ownerToken}`)
+        .set('Cookie', [`access_token=${ownerToken}`])
         .send({ name: 'Soft Delete Membership Board' });
       const boardId = boardRes.body.id;
 
       // Soft-delete the board
       await request(app)
         .delete(`/api/boards/${boardId}`)
-        .set('Authorization', `Bearer ${ownerToken}`);
+        .set('Cookie', [`access_token=${ownerToken}`]);
 
       // Try to add a member
       const res = await request(app)
         .post(`/api/boards/${boardId}/members`)
-        .set('Authorization', `Bearer ${ownerToken}`)
+        .set('Cookie', [`access_token=${ownerToken}`])
         .send({ userId: viewerId, role: 'VIEWER' });
       expect(res.statusCode).toBe(404);
     });
@@ -336,21 +336,21 @@ describe('RBAC', () => {
     it('removedMember cannot access board', async () => {
       const res = await request(app)
         .get(`/api/boards/${boardId}`)
-        .set('Authorization', `Bearer ${removedMemberToken}`);
+        .set('Cookie', [`access_token=${removedMemberToken}`]);
       expect(res.statusCode).toBe(404);
     });
 
     it('removedMember cannot access columns', async () => {
       const res = await request(app)
         .get(`/api/boards/${boardId}/columns`)
-        .set('Authorization', `Bearer ${removedMemberToken}`);
+        .set('Cookie', [`access_token=${removedMemberToken}`]);
       expect(res.statusCode).toBe(404);
     });
 
     it('removedMember cannot access tasks', async () => {
       const res = await request(app)
         .get(`/api/columns/${columnId}/tasks`)
-        .set('Authorization', `Bearer ${removedMemberToken}`);
+        .set('Cookie', [`access_token=${removedMemberToken}`]);
       expect(res.statusCode).toBe(404);
     });
   });
@@ -359,21 +359,21 @@ describe('RBAC', () => {
     it('neverMember cannot access board', async () => {
       const res = await request(app)
         .get(`/api/boards/${boardId}`)
-        .set('Authorization', `Bearer ${neverMemberToken}`);
+        .set('Cookie', [`access_token=${neverMemberToken}`]);
       expect(res.statusCode).toBe(404);
     });
 
     it('neverMember cannot access columns', async () => {
       const res = await request(app)
         .get(`/api/boards/${boardId}/columns`)
-        .set('Authorization', `Bearer ${neverMemberToken}`);
+        .set('Cookie', [`access_token=${neverMemberToken}`]);
       expect(res.statusCode).toBe(404);
     });
 
     it('neverMember cannot access tasks', async () => {
       const res = await request(app)
         .get(`/api/columns/${columnId}/tasks`)
-        .set('Authorization', `Bearer ${neverMemberToken}`);
+        .set('Cookie', [`access_token=${neverMemberToken}`]);
       expect(res.statusCode).toBe(404);
     });
   });
@@ -384,7 +384,7 @@ describe('RBAC', () => {
       // create a new board just for this test
       const res = await request(app)
         .post('/api/boards')
-        .set('Authorization', `Bearer ${ownerToken}`)
+        .set('Cookie', [`access_token=${ownerToken}`])
         .send({ name: `Delete Test Board ${Date.now()}` });
       tempBoardId = res.body.id;
     });
@@ -392,7 +392,7 @@ describe('RBAC', () => {
     it('OWNER can delete the board', async () => {
       const res = await request(app)
         .delete(`/api/boards/${tempBoardId}`)
-        .set('Authorization', `Bearer ${ownerToken}`);
+        .set('Cookie', [`access_token=${ownerToken}`]);
       expect([200, 404]).toContain(res.statusCode);
     });
   });

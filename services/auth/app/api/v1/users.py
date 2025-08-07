@@ -9,6 +9,8 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from jose import JWTError, jwt
 from jose.exceptions import ExpiredSignatureError
+from sqlalchemy.future import select
+from sqlalchemy import delete
 
 # Local
 from app.core.config import get_settings
@@ -66,6 +68,7 @@ async def register_user(
 @limiter.limit("40/minute")  # 40 login attempts per minute per IP
 async def login_user(
     request: Request,
+    response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
 ) -> Token:
@@ -99,7 +102,7 @@ async def login_user(
     jti = str(uuid4())
 
     access_token = create_access_token(
-        data={"sub": str(user.id)},
+        data={"sub": str(user.id), "role": user.role},
         expires_delta=access_exp_delta,
     )
     refresh_token = create_refresh_token(
@@ -121,6 +124,27 @@ async def login_user(
     await db.commit()
 
     logger.info(f"User logged in successfully: {user.email} (ID: {user.id}), JTI: {jti}")
+
+    # Set cookies
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=settings.env == "production",
+        samesite="lax",
+        max_age=int(settings.access_token_expire_minutes * 60),
+        path="/",
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=settings.env == "production",
+        samesite="lax",
+        max_age=int(settings.refresh_token_expire_minutes * 60),
+        path="/api/auth/api/v1/refresh",  # restrict path if you want
+    )
+
     return Token(
         access_token=access_token,
         refresh_token=refresh_token,
@@ -147,6 +171,7 @@ async def read_current_user(current_user: User = Depends(get_current_user)):
 @limiter.limit("100/minute")  # 100 refreshes per minute per IP
 async def refresh_access_token(
     request: Request,
+    response: Response,
     refresh_token: str = Body(..., embed=True),
     db: AsyncSession = Depends(get_db),
 ) -> Token:
@@ -191,14 +216,6 @@ async def refresh_access_token(
 
         await db.refresh(user)
 
-        # Log all valid refresh tokens for this user before validation
-        tokens_before = await get_all_valid_refresh_tokens_for_user(db, user.id)
-        logger.debug(f"[PRE] Valid refresh tokens for user {user.id}: {[t.jti for t in tokens_before]}")
-
-        # Log the token being checked
-        token_in_db = await get_refresh_token_from_db(db, jti, user.id)
-        logger.debug(f"Token in DB for jti={jti}: {token_in_db}")
-
         if user.last_refresh_jti != jti:
             logger.warning(f"Refresh token reuse detected for user ID {user_id}: token JTI {jti} does not match last_refresh_jti {user.last_refresh_jti}")
             await auth_service.revoke_refresh_token(db, user, jti=jti, clear_jti=False)
@@ -214,7 +231,7 @@ async def refresh_access_token(
         new_jti = str(uuid4())
 
         access_token = create_access_token(
-            data={"sub": str(user_id)},
+            data={"sub": str(user_id), "role": user.role},
             expires_delta=timedelta(minutes=settings.access_token_expire_minutes),
         )
         new_refresh_token = create_refresh_token(
@@ -249,6 +266,27 @@ async def refresh_access_token(
 
         logger.info(f"Refresh token rotated successfully for user ID {user_id}, new JTI: {new_jti}")
         refresh_token_usage_counter.labels(method="refresh").inc()
+
+        # Set cookies for new tokens
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=int(settings.access_token_expire_minutes * 60),
+            path="/",
+        )
+        response.set_cookie(
+            key="refresh_token",
+            value=new_refresh_token,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=int(settings.refresh_token_expire_minutes * 60),
+            path="/api/auth/api/v1/refresh",
+        )
+
         return Token(
             access_token=access_token,
             refresh_token=new_refresh_token,
@@ -264,6 +302,7 @@ async def refresh_access_token(
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, tags=["auth"])
 async def logout_user(
+    response: Response,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
@@ -280,7 +319,12 @@ async def logout_user(
     logger.info(f"Logging out user ID {current_user.id}, email {current_user.email}")
     await auth_service.revoke_refresh_token(db, current_user)
     logger.info(f"User ID {current_user.id} logged out successfully")
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    # Clear cookies
+    response.delete_cookie("access_token", path="/")
+    response.delete_cookie("refresh_token", path="/api/auth/api/v1/refresh")
+    response.status_code = status.HTTP_204_NO_CONTENT
+    return response
 
 
 @router.get("/admin-only", tags=["admin"])
@@ -297,3 +341,38 @@ async def admin_dashboard(user: User = Depends(require_role("admin"))):
     admin_action_counter.labels(action="dashboard_access").inc()
     logger.debug(f"Admin access by user ID {user.id}, email {user.email}")
     return {"message": f"Welcome, admin {user.email}"}
+
+
+@router.get("/admin/users", response_model=list[UserOut], tags=["admin"])
+async def list_all_users(
+    user: User = Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    List all users (admin only).
+
+    Args:
+        user (User): The authenticated admin user.
+        db (AsyncSession): The database session.
+
+    Returns:
+        List[UserOut]: All users in the system.
+    """
+    result = await db.execute(select(User))
+    users = result.scalars().all()
+    return [UserOut.model_validate(u) for u in users]
+
+
+@router.delete("/admin/delete-boardtest-users", tags=["admin"])
+async def delete_boardtest_users(
+    user: User = Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Delete all users with emails ending in '@boardtests.com' (admin only).
+    """
+    stmt = delete(User).where(User.email.like('%@boardtests.com'))
+    await db.execute(stmt)
+    await db.commit()
+    logger.info("Admin deleted all @boardtests.com users")
+    return {"message": "All @boardtests.com users deleted"}

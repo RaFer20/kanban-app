@@ -36,22 +36,50 @@ async def test_register_user(client):
 
 @pytest.mark.asyncio
 async def test_login_success(client):
-    """Login succeeds with correct credentials and returns tokens."""
+    """Login succeeds with correct credentials and sets cookies."""
     email = f"testuser_{uuid.uuid4()}@example.com"
-    register_response = await client.post("/api/v1/users/", json={
-        "email": email,
-        "password": "testpassword"
-    })
-    assert register_response.status_code in (200, 201)
-    response = await client.post("/api/v1/token", data={
-        "username": email,
-        "password": "testpassword"
-    })
+    await client.post("/api/v1/users/", json={"email": email, "password": "testpassword"})
+    response = await client.post("/api/v1/token", data={"username": email, "password": "testpassword"})
     assert response.status_code == 200
-    json_data = response.json()
-    assert "access_token" in json_data
-    assert "refresh_token" in json_data
-    assert json_data["token_type"] == "bearer"
+    assert "access_token" in response.cookies
+    assert "refresh_token" in response.cookies
+
+@pytest.mark.asyncio
+async def test_protected_endpoint_requires_cookie(client):
+    """Protected endpoint requires access_token cookie."""
+    email = f"cookieuser_{uuid.uuid4()}@example.com"
+    await client.post("/api/v1/users/", json={"email": email, "password": "pw"})
+    login_res = await client.post("/api/v1/token", data={"username": email, "password": "pw"})
+    access_token = login_res.cookies.get("access_token")
+    client.cookies.set("access_token", access_token)
+    res = await client.get("/api/v1/me")
+    assert res.status_code == 200
+
+@pytest.mark.asyncio
+async def test_refresh_token_success(client):
+    """Refresh token endpoint returns new access token on valid refresh."""
+    email = f"testuser_{uuid.uuid4()}@example.com"
+    await client.post("/api/v1/users/", json={"email": email, "password": "testpassword"})
+    login_res = await client.post("/api/v1/token", data={"username": email, "password": "testpassword"})
+    refresh_token = login_res.cookies.get("refresh_token")
+    refresh_res = await client.post("/api/v1/refresh", json={"refresh_token": refresh_token})
+    assert refresh_res.status_code == 200
+    assert "access_token" in refresh_res.cookies
+
+@pytest.mark.asyncio
+async def test_logout_revokes_refresh_token(client):
+    """Logout revokes refresh token and prevents its reuse."""
+    email = f"logoutuser_{uuid.uuid4()}@example.com"
+    password = "logoutpassword"
+    await client.post("/api/v1/users/", json={"email": email, "password": password})
+    login_res = await client.post("/api/v1/token", data={"username": email, "password": password})
+    access_token = login_res.cookies.get("access_token")
+    refresh_token = login_res.cookies.get("refresh_token")
+    client.cookies.set("access_token", access_token)
+    logout_res = await client.post("/api/v1/logout")
+    assert logout_res.status_code == 204
+    refresh_res = await client.post("/api/v1/refresh", json={"refresh_token": refresh_token})
+    assert refresh_res.status_code == 401
 
 @pytest.mark.asyncio
 async def test_login_invalid_password(client):
@@ -66,24 +94,6 @@ async def test_login_invalid_password(client):
         "password": "wrongpassword"
     })
     assert response.status_code == 401
-
-@pytest.mark.asyncio
-async def test_refresh_token_success(client):
-    """Refresh token endpoint returns new access token on valid refresh."""
-    email = f"testuser_{uuid.uuid4()}@example.com"
-    await client.post("/api/v1/users/", json={
-        "email": email,
-        "password": "testpassword"
-    })
-    login_res = await client.post("/api/v1/token", data={
-        "username": email,
-        "password": "testpassword"
-    })
-    assert login_res.status_code == 200
-    refresh_token = login_res.json()["refresh_token"]
-    refresh_res = await client.post("/api/v1/refresh", json={"refresh_token": refresh_token})
-    assert refresh_res.status_code == 200
-    assert "access_token" in refresh_res.json()
 
 @pytest.mark.asyncio
 async def test_register_duplicate_user(client):
@@ -117,28 +127,6 @@ async def test_login_wrong_password(client):
         "password": "incorrectpassword"
     })
     assert response.status_code == 401
-
-@pytest.mark.asyncio
-async def test_logout_revokes_refresh_token(client):
-    """Logout revokes refresh token and prevents its reuse."""
-    email = f"logoutuser_{uuid.uuid4()}@example.com"
-    password = "logoutpassword"
-    await client.post("/api/v1/users/", json={"email": email, "password": password})
-
-    login_res = await client.post("/api/v1/token", data={"username": email, "password": password})
-    tokens = login_res.json()
-    access_token = tokens["access_token"]
-    refresh_token = tokens["refresh_token"]
-
-    logout_res = await client.post(
-        "/api/v1/logout",
-        headers={"Authorization": f"Bearer {access_token}"}
-    )
-    assert logout_res.status_code == 204
-
-    refresh_res = await client.post("/api/v1/refresh", json={"refresh_token": refresh_token})
-    assert refresh_res.status_code == 401
-    assert refresh_res.json().get("detail") == "Refresh token invalid or reused"
 
 @pytest.mark.asyncio
 async def test_refresh_token_invalid_token(client):
@@ -314,23 +302,21 @@ async def test_access_token_tampering(client):
     password = "tamperpass"
     await client.post("/api/v1/users/", json={"email": email, "password": password})
     login_res = await client.post("/api/v1/token", data={"username": email, "password": password})
-    tokens = login_res.json()
-    access_token = tokens["access_token"]
+    access_token = login_res.cookies.get("access_token")
 
     # Tamper with the payload (change a character)
     parts = access_token.split('.')
     assert len(parts) == 3
-    import base64
-    import json
-
+    import base64, json
     payload_bytes = base64.urlsafe_b64decode(parts[1] + '==')
     payload = json.loads(payload_bytes)
     payload["sub"] = "hacker@example.com"
     new_payload = base64.urlsafe_b64encode(json.dumps(payload).encode()).decode().rstrip("=")
     tampered_token = f"{parts[0]}.{new_payload}.{parts[2]}"
 
-    # Use the correct protected endpoint
-    res = await client.get("/api/v1/me", headers={"Authorization": f"Bearer {tampered_token}"})
+    # Use the tampered token as a cookie
+    client.cookies.set("access_token", tampered_token)
+    res = await client.get("/api/v1/me")
     assert res.status_code == 401 or res.status_code == 403
 
 @pytest.mark.asyncio
