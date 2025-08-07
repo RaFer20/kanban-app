@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from jose import JWTError, jwt
 from jose.exceptions import ExpiredSignatureError
 from sqlalchemy.future import select
+from sqlalchemy import delete
 
 # Local
 from app.core.config import get_settings
@@ -360,3 +361,18 @@ async def list_all_users(
     result = await db.execute(select(User))
     users = result.scalars().all()
     return [UserOut.model_validate(u) for u in users]
+
+
+@router.delete("/admin/delete-boardtest-users", tags=["admin"])
+async def delete_boardtest_users(
+    user: User = Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Delete all users with emails ending in '@boardtests.com' (admin only).
+    """
+    stmt = delete(User).where(User.email.like('%@boardtests.com'))
+    await db.execute(stmt)
+    await db.commit()
+    logger.info("Admin deleted all @boardtests.com users")
+    return {"message": "All @boardtests.com users deleted"}
