@@ -30,6 +30,7 @@ from app.services.refresh_tokens import (
     get_refresh_token_from_db,
 )
 from app.limiter import limiter
+from app.schemas.enums import UserRole
 
 settings = get_settings()
 router = APIRouter()
@@ -376,3 +377,46 @@ async def delete_boardtest_users(
     await db.commit()
     logger.info("Admin deleted all @boardtests.com users")
     return {"message": "All @boardtests.com users deleted"}
+
+
+@router.patch("/admin/users/{user_id}/role", response_model=UserOut, tags=["admin"])
+async def update_user_role(
+    user_id: int,
+    role: str = Body(..., embed=True),
+    admin_user: User = Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Update a user's role (admin only).
+
+    Args:
+        user_id (int): The ID of the user whose role is to be updated.
+        role (str): The new role for the user.
+        admin_user (User): The authenticated admin user.
+        db (AsyncSession): The database session.
+
+    Returns:
+        UserOut: The updated user data.
+
+    Raises:
+        HTTPException: If the user is not found or if there is an error during the update.
+    """
+    logger.debug(f"Admin {admin_user.email} updating role for user ID {user_id} to {role}")
+    user = await db.get(User, user_id)
+    if not user:
+        logger.warning(f"User ID {user_id} not found for role update")
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Validate and convert role to UserRole enum
+    try:
+        if role not in ("user", "admin"):
+            raise HTTPException(status_code=400, detail="Invalid role")
+        user.role = UserRole(role)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid role")
+
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    logger.info(f"User ID {user_id} role updated to {role} by admin {admin_user.email}")
+    return UserOut.model_validate(user)
