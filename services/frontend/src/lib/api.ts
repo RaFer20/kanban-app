@@ -267,6 +267,14 @@ export const boardApi = {
       { method: "POST" }
     );
   },
+
+  async getUserBoards(userId: number) {
+    const res = await fetch(`/api/board/users/${userId}/boards`);
+    if (!res.ok) throw new Error("Failed to fetch user boards");
+    return res.json();
+  },
+
 };
 
 export { ApiError };
+

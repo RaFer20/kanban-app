@@ -367,3 +367,19 @@ export async function restoreBoard(boardId: number) {
   });
 }
 
+/**
+ * Fetches all boards for a user, including their roles.
+ * @param userId - The ID of the user.
+ * @returns An array of objects containing board details and the user's role.
+ */
+export async function getBoardsForUserWithRoles(userId: number) {
+  const memberships = await prisma.boardMembership.findMany({
+    where: { userId },
+    include: { board: true },
+  });
+  return memberships.map(m => ({
+    board: m.board,
+    role: m.role,
+  }));
+}
+
