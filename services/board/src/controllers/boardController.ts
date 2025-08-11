@@ -7,7 +7,8 @@ import {
   getOwnedBoardsPaginated,
   getAllBoards,
   resetDemoData,
-  restoreBoard
+  restoreBoard,
+  getBoardsForUserWithRoles
 } from '../services/boardService';
 import { createBoardSchema } from "../schemas/boardSchema";
 import { AuthenticatedRequest } from "../types/express";
@@ -214,6 +215,7 @@ export async function getBoardHandler(
 ): Promise<void> {
   const boardId = Number(req.params.boardId);
   const userId = req.user?.id;
+  const isAdmin = req.user?.role === 'admin';
   if (typeof userId !== 'number') {
     res.status(401).json({ error: "Unauthorized" });
     return;
@@ -223,10 +225,12 @@ export async function getBoardHandler(
     res.status(404).json({ error: "Board not found" });
     return;
   }
-  const role = await getUserRoleForBoard(boardId, userId);
-  if (role == null) {
-    res.status(404).json({ error: "Board not found" });
-    return;
+  if (!isAdmin) {
+    const role = await getUserRoleForBoard(boardId, userId);
+    if (role == null) {
+      res.status(404).json({ error: "Board not found" });
+      return;
+    }
   }
   res.json(board);
 }
@@ -342,5 +346,40 @@ export async function restoreBoardHandler(
     res.json({ message: "Board restored successfully" });
   } catch (error: any) {
     res.status(500).json({ error: "Failed to restore board" });
+  }
+}
+
+/**
+ * @openapi
+ * /api/users/{userId}/boards:
+ *   get:
+ *     summary: Get all boards for a user (admin only)
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: List of boards with user roles
+ *       400:
+ *         description: Invalid userId
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Failed to fetch user boards
+ */
+export async function getUserBoardsHandler(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const userId = Number(req.params.userId);
+  if (!userId) {
+    res.status(400).json({ error: "Invalid userId" });
+    return;
+  }
+  try {
+    const boards = await getBoardsForUserWithRoles(userId);
+    res.json(boards);
+  } catch (e) {
+    res.status(500).json({ error: "Failed to fetch user boards" });
   }
 }

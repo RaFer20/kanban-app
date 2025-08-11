@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { authApi } from "../lib/api";
+import { authApi, boardApi } from "../lib/api";
+import { SimpleModal } from "../components/SimpleModal";
 
 interface User {
   id: number;
@@ -15,6 +16,10 @@ export function AdminUsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<number | null>(null);
   const [newRole, setNewRole] = useState<string>("");
+
+  const [selectedUser, setSelectedUser] = useState<null | { id: number; email: string }>(null);
+  const [userBoards, setUserBoards] = useState<Array<{ board: any; role: string }>>([]);
+  const [loadingBoards, setLoadingBoards] = useState(false);
 
   function formatUserDate(user: User): string {
     const dateString = user.created_at || (user as any).createdAt || (user as any).date_created;
@@ -60,6 +65,19 @@ export function AdminUsersPage() {
       setError(err.message || 'Failed to update user role');
     }
   }
+
+  const handleViewDetails = async (user: { id: number; email: string }) => {
+    setSelectedUser(user);
+    setLoadingBoards(true);
+    setError(null);
+    try {
+      const boards = await boardApi.getUserBoards(user.id);
+      setUserBoards(boards);
+    } catch (e: any) {
+      setError(e.message || "Failed to load boards");
+    }
+    setLoadingBoards(false);
+  };
 
   if (loading) return <div className="p-8">Loading users...</div>;
   if (error) return <div className="p-8 text-red-600">Error: {error}</div>;
@@ -180,7 +198,10 @@ export function AdminUsersPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <div className="flex space-x-2">
-                        <button className="text-blue-600 hover:text-blue-900 hover:underline">
+                        <button 
+                          onClick={() => handleViewDetails(user)} 
+                          className="text-blue-600 hover:text-blue-900 hover:underline"
+                        >
                           View Details
                         </button>
                       </div>
@@ -197,6 +218,52 @@ export function AdminUsersPage() {
         <div className="mt-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
           {error}
         </div>
+      )}
+
+      {selectedUser && (
+        <SimpleModal open={true} onClose={() => setSelectedUser(null)}>
+          <h2 className="text-xl font-bold mb-4">User: {selectedUser.email}</h2>
+          {loadingBoards ? (
+            <div>Loading boards...</div>
+          ) : (
+            <>
+              {userBoards.length === 0 ? (
+                <div className="text-gray-500">No boards found for this user.</div>
+              ) : (
+                <table className="w-full mb-4">
+                  <thead>
+                    <tr>
+                      <th className="text-left px-2 py-1">Board Name</th>
+                      <th className="text-left px-2 py-1">Board ID</th>
+                      <th className="text-left px-2 py-1">Role</th>
+                      <th className="text-left px-2 py-1">Link</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {userBoards.map(({ board, role }) => (
+                      <tr key={board.id}>
+                        <td className="px-2 py-1">{board.name}</td>
+                        <td className="px-2 py-1">{board.id}</td>
+                        <td className="px-2 py-1">{role}</td>
+                        <td className="px-2 py-1">
+                          <Link to={`/boards/${board.id}`} className="text-blue-600 underline">
+                            View
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              <button
+                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+                onClick={() => setSelectedUser(null)}
+              >
+                Close
+              </button>
+            </>
+          )}
+        </SimpleModal>
       )}
     </div>
   );
