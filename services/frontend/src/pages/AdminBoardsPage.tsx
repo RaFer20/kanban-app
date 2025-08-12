@@ -21,6 +21,9 @@ export function AdminBoardsPage() {
   const [membersLoading, setMembersLoading] = useState(false);
   const [membersError, setMembersError] = useState<string | null>(null);
   const [users, setUsers] = useState<{ id: number; email: string }[]>([]);
+  const [addUserId, setAddUserId] = useState("");
+  const [addRole, setAddRole] = useState("VIEWER");
+  const [addError, setAddError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchBoards();
@@ -91,6 +94,15 @@ export function AdminBoardsPage() {
       openMembers(boardId); // Refresh
     } catch (err: any) {
       setMembersError(err.message || "Failed to remove member");
+    }
+  }
+
+  async function handleChangeRole(userId: number, newRole: string) {
+    try {
+      await boardApi.updateBoardMemberRole(showMembersFor!, userId, newRole);
+      openMembers(showMembersFor!); // Refresh
+    } catch (err: any) {
+      setMembersError(err.message || "Failed to update role");
     }
   }
 
@@ -215,34 +227,91 @@ export function AdminBoardsPage() {
         ) : membersError ? (
           <div className="text-red-600">{membersError}</div>
         ) : (
-          <table className="w-full mb-4">
-            <thead>
-              <tr>
-                <th>User ID</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {members.map((m) => (
-                <tr key={m.userId}>
-                  <td>{m.userId}</td>
-                  <td>{getEmail(m.userId)}</td>
-                  <td>{m.role}</td>
-                  <td>
-                    <button
-                      className="text-red-600 hover:underline"
-                      onClick={() => handleRemoveMember(showMembersFor, m.userId)}
-                    >
-                      Remove
-                    </button>
-                    {/* Add change role UI here if desired */}
-                  </td>
+          <>
+            <table className="w-full mb-4">
+              <thead>
+                <tr>
+                  <th>User ID</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {members.map((m) => (
+                  <tr key={m.userId}>
+                    <td>{m.userId}</td>
+                    <td>{getEmail(m.userId)}</td>
+                    <td>
+                      <select
+                        value={m.role}
+                        onChange={e => handleChangeRole(m.userId, e.target.value)}
+                        className="border px-2 py-1 rounded"
+                      >
+                        <option value="OWNER">OWNER</option>
+                        <option value="EDITOR">EDITOR</option>
+                        <option value="VIEWER">VIEWER</option>
+                      </select>
+                    </td>
+                    <td>
+                      <button
+                        className="text-red-600 hover:underline"
+                        onClick={() => handleRemoveMember(showMembersFor, m.userId)}
+                      >
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setAddError(null);
+                try {
+                  await boardApi.addBoardMember(showMembersFor!, Number(addUserId), addRole);
+                  setAddUserId("");
+                  setAddRole("VIEWER");
+                  openMembers(showMembersFor!); // Refresh
+                } catch (err: any) {
+                  setAddError(err.message || "Failed to add member");
+                }
+              }}
+              className="flex gap-2 mb-4"
+            >
+              <select
+                value={addUserId}
+                onChange={e => setAddUserId(e.target.value)}
+                className="border px-2 py-1 rounded w-56 truncate"
+                required
+              >
+                <option value="">Select user</option>
+                {users
+                  .filter(u => !members.some(m => m.userId === u.id))
+                  .map(u => (
+                    <option key={u.id} value={u.id}>
+                      {u.email.length > 24
+                        ? `${u.email.slice(0, 22)}… (ID: ${u.id})`
+                        : `${u.email} (ID: ${u.id})`}
+                    </option>
+                  ))}
+              </select>
+              <select
+                value={addRole}
+                onChange={e => setAddRole(e.target.value)}
+                className="border px-2 py-1 rounded"
+              >
+                <option value="OWNER">OWNER</option>
+                <option value="EDITOR">EDITOR</option>
+                <option value="VIEWER">VIEWER</option>
+              </select>
+              <button type="submit" className="bg-blue-600 text-white px-3 py-1 rounded">
+                Add
+              </button>
+            </form>
+            {addError && <div className="text-red-600 mb-2">{addError}</div>}
+          </>
         )}
         <button
           className="mt-2 px-4 py-2 bg-gray-200 rounded"
