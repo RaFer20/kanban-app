@@ -63,13 +63,17 @@ export async function addBoardMemberHandler(
     res.status(404).json({ error: "Board not found" });
     return;
   }
+  const isAdmin = req.user?.role === 'admin';
   const requesterRole = await getUserRoleForBoard(boardId, requesterId);
-  if (requesterRole == null) {
-    req.log?.warn({ requesterId, boardId }, 'No role found for add member');
-    res.status(404).json({ error: "Board not found" });
-    return;
+
+  if (!isAdmin) {
+    if (requesterRole == null) {
+      req.log?.warn({ requesterId, boardId }, 'No role found for add member');
+      res.status(404).json({ error: "Board not found" });
+      return;
+    }
+    if (!requireRole(['OWNER'], requesterRole, res)) return;
   }
-  if (!requireRole(['OWNER'], requesterRole, res)) return;
   if (!userId) {
     res.status(400).json({ error: "Missing userId" });
     return;
@@ -116,16 +120,19 @@ export async function listBoardMembersHandler(
     res.status(404).json({ error: "Board not found" });
     return;
   }
-  const role = await getUserRoleForBoard(boardId, userId);
-  if (role == null) {
-    req.log?.warn({ userId, boardId }, 'No role found for listBoardMembers');
-    res.status(404).json({ error: 'Board not found' });
-    return;
-  }
-  if (!['OWNER', 'EDITOR'].includes(role)) {
-    req.log?.warn({ userId, boardId, role }, 'Forbidden: insufficient role for listBoardMembers');
-    res.status(403).json({ error: 'Forbidden' });
-    return;
+  const isAdmin = req.user?.role === 'admin';
+  if (!isAdmin) {
+    const role = await getUserRoleForBoard(boardId, userId);
+    if (role == null) {
+      req.log?.warn({ userId, boardId }, 'No role found for listBoardMembers');
+      res.status(404).json({ error: 'Board not found' });
+      return;
+    }
+    if (!['OWNER', 'EDITOR'].includes(role)) {
+      req.log?.warn({ userId, boardId, role }, 'Forbidden: insufficient role for listBoardMembers');
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
   }
   try {
     const members = await prisma.boardMembership.findMany({
@@ -180,13 +187,17 @@ export async function removeBoardMemberHandler(
     res.status(404).json({ error: "Board not found" });
     return;
   }
+  const isAdmin = req.user?.role === 'admin';
   const requesterRole = await getUserRoleForBoard(boardId, requesterId);
-  if (requesterRole == null) {
-    req.log?.warn({ requesterId, boardId }, 'No role found for remove member');
-    res.status(404).json({ error: "Board not found" });
-    return;
+
+  if (!isAdmin) {
+    if (requesterRole == null) {
+      req.log?.warn({ requesterId, boardId }, 'No role found for remove member');
+      res.status(404).json({ error: "Board not found" });
+      return;
+    }
+    if (!requireRole(['OWNER'], requesterRole, res)) return;
   }
-  if (!requireRole(['OWNER'], requesterRole, res)) return;
   try {
     await prisma.boardMembership.delete({
       where: { boardId_userId: { boardId, userId: memberId } }
@@ -249,13 +260,17 @@ export async function updateBoardMemberRoleHandler(
     res.status(404).json({ error: "Board not found" });
     return;
   }
+  const isAdmin = req.user?.role === 'admin';
   const requesterRole = await getUserRoleForBoard(boardId, requesterId);
-  if (requesterRole == null) {
-    req.log?.warn({ requesterId, boardId }, 'No role found for update member role');
-    res.status(403).json({ error: "Forbidden" });
-    return;
+
+  if (!isAdmin) {
+    if (requesterRole == null) {
+      req.log?.warn({ requesterId, boardId }, 'No role found for update member role');
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+    if (!requireRole(['OWNER'], requesterRole, res)) return;
   }
-  if (!requireRole(['OWNER'], requesterRole, res)) return;
   try {
     const updated = await prisma.boardMembership.update({
       where: { boardId_userId: { boardId, userId: memberId } },

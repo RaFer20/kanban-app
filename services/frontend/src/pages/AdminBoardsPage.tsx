@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { boardApi } from "../lib/api";
+import { authApi, boardApi } from "../lib/api";
+import { SimpleModal } from "../components/SimpleModal";
 
 interface AdminBoard {
   id: number;
@@ -15,9 +16,26 @@ export function AdminBoardsPage() {
   const [boards, setBoards] = useState<AdminBoard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showMembersFor, setShowMembersFor] = useState<number | null>(null);
+  const [members, setMembers] = useState<any[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [membersError, setMembersError] = useState<string | null>(null);
+  const [users, setUsers] = useState<{ id: number; email: string }[]>([]);
 
   useEffect(() => {
     fetchBoards();
+  }, []);
+
+  useEffect(() => {
+    async function fetchUsers() {
+      try {
+        const allUsers = await authApi.getAllUsers();
+        setUsers(allUsers);
+      } catch (e) {
+        // handle error
+      }
+    }
+    fetchUsers();
   }, []);
 
   async function fetchBoards() {
@@ -49,6 +67,35 @@ export function AdminBoardsPage() {
     } catch (err: any) {
       setError(err.message || "Failed to restore board");
     }
+  }
+
+  async function openMembers(boardId: number) {
+    setShowMembersFor(boardId);
+    setMembersLoading(true);
+    setMembersError(null);
+    try {
+      const res = await boardApi.getBoardMembers(boardId);
+      setMembers(res);
+    } catch (err: any) {
+      setMembersError(err.message || "Failed to load members");
+    } finally {
+      setMembersLoading(false);
+    }
+  }
+
+  async function handleRemoveMember(boardId: number | null, userId: number) {
+    if (boardId === null) return;
+    if (!window.confirm("Remove this user from the board?")) return;
+    try {
+      await boardApi.removeBoardMember(boardId, userId);
+      openMembers(boardId); // Refresh
+    } catch (err: any) {
+      setMembersError(err.message || "Failed to remove member");
+    }
+  }
+
+  function getEmail(userId: number) {
+    return users.find(u => u.id === userId)?.email || userId;
   }
 
   if (loading) return <div className="p-8">Loading boards...</div>;
@@ -84,6 +131,9 @@ export function AdminBoardsPage() {
                   Owner ID
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Owner Email
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -105,6 +155,9 @@ export function AdminBoardsPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {board.ownerId}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {getEmail(board.ownerId)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
@@ -141,6 +194,12 @@ export function AdminBoardsPage() {
                         Restore
                       </button>
                     )}
+                    <button
+                      className="ml-4 text-indigo-600 hover:text-indigo-900"
+                      onClick={() => openMembers(board.id)}
+                    >
+                      Manage Members
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -148,6 +207,50 @@ export function AdminBoardsPage() {
           </table>
         </div>
       </div>
+
+      <SimpleModal open={!!showMembersFor} onClose={() => setShowMembersFor(null)}>
+        <h3 className="text-lg font-bold mb-4">Board Members</h3>
+        {membersLoading ? (
+          <div>Loading...</div>
+        ) : membersError ? (
+          <div className="text-red-600">{membersError}</div>
+        ) : (
+          <table className="w-full mb-4">
+            <thead>
+              <tr>
+                <th>User ID</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {members.map((m) => (
+                <tr key={m.userId}>
+                  <td>{m.userId}</td>
+                  <td>{getEmail(m.userId)}</td>
+                  <td>{m.role}</td>
+                  <td>
+                    <button
+                      className="text-red-600 hover:underline"
+                      onClick={() => handleRemoveMember(showMembersFor, m.userId)}
+                    >
+                      Remove
+                    </button>
+                    {/* Add change role UI here if desired */}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <button
+          className="mt-2 px-4 py-2 bg-gray-200 rounded"
+          onClick={() => setShowMembersFor(null)}
+        >
+          Close
+        </button>
+      </SimpleModal>
     </div>
   );
 }
