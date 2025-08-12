@@ -274,6 +274,24 @@ export const boardApi = {
     return res.json();
   },
 
+  async removeBoardMember(boardId: number, userId: number) {
+    return apiRequest(`/api/board/boards/${boardId}/members/${userId}`, { method: "DELETE" });
+  },
+  async addBoardMember(boardId: number, userId: number, role: string) {
+    return apiRequest(`/api/board/boards/${boardId}/members`, {
+      method: "POST",
+      body: JSON.stringify({ userId, role }),
+    });
+  },
+  async updateBoardMemberRole(boardId: number, userId: number, role: string) {
+    return apiRequest(`/api/board/boards/${boardId}/members/${userId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    });
+  },
+  async getBoardMembers(boardId: number): Promise<{ userId: number; role: string; createdAt: string; updatedAt: string; }[]> {
+    return apiRequest(`/api/board/boards/${boardId}/members`);
+  },
 };
 
 export { ApiError };
