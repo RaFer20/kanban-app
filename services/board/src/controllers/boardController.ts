@@ -13,10 +13,10 @@ import {
 import { createBoardSchema } from "../schemas/boardSchema";
 import { AuthenticatedRequest } from "../types/express";
 import { requireRole } from "../utils/requireRole";
-import prisma from '../prisma';
 import { boardsCreated } from '../metrics';
 import { ensureBoardActive } from '../utils/entityChecks';
 import { exec } from 'child_process';
+import prisma from '../prisma';
 
 /**
  * @openapi
@@ -214,25 +214,24 @@ export async function getBoardHandler(
   res: Response
 ): Promise<void> {
   const boardId = Number(req.params.boardId);
-  const userId = req.user?.id;
-  const isAdmin = req.user?.role === 'admin';
-  if (typeof userId !== 'number') {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  const board = await ensureBoardActive(boardId);
+  const board = await prisma.board.findUnique({
+    where: { id: boardId },
+  });
   if (!board) {
     res.status(404).json({ error: "Board not found" });
     return;
   }
-  if (!isAdmin) {
-    const role = await getUserRoleForBoard(boardId, userId);
-    if (role == null) {
-      res.status(404).json({ error: "Board not found" });
-      return;
-    }
-  }
-  res.json(board);
+  const memberships = await prisma.boardMembership.findMany({
+    where: { boardId },
+    select: { userId: true, role: true }
+  });
+  res.json({
+    id: board.id,
+    name: board.name,
+    createdAt: board.createdAt,
+    updatedAt: board.updatedAt,
+    members: memberships
+  });
 }
 
 /**

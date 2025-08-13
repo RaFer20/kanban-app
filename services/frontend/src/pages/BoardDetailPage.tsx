@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
   DndContext,
@@ -16,8 +16,10 @@ import { SortableColumn, TaskModal, ColumnModal, SimpleModal, AddColumnForm, Boa
 import { useBoardDnD } from "../hooks/useBoardDnD";
 import { useBoardDetailState } from "../hooks/useBoardDetailState";
 import { useBoardDetailData } from "../hooks/useBoardDetailData";
+import { useAuth } from "../hooks/useAuth";
 import type { Task, Column } from "../types/board";
 import type { DragStartEvent, DragEndEvent } from "@dnd-kit/core";
+import { authApi } from "../lib/api";
 
 export function BoardDetailPage() {
   const { boardId } = useParams();
@@ -25,11 +27,14 @@ export function BoardDetailPage() {
   const [showAddColumn, setShowAddColumn] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
+  const [users, setUsers] = useState<{ id: number; email: string }[]>([]);
 
   const {
     selectedTask, setSelectedTask, showTaskModal, setShowTaskModal,
     selectedColumn, setSelectedColumn, showColumnModal, setShowColumnModal,
   } = useBoardDetailState();
+
+  const { user } = useAuth();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -40,6 +45,18 @@ export function BoardDetailPage() {
     error: dndError,
     setError: setDndError,
   } = useBoardDnD(columns, fetchColumns);
+
+  useEffect(() => {
+    async function fetchUsers() {
+      try {
+        const allUsers = await authApi.getAllUsers();
+        setUsers(allUsers.map(u => ({ id: u.id, email: u.email })));
+      } catch (err) {
+        setUsers([]);
+      }
+    }
+    fetchUsers();
+  }, []);
 
   if (loading) return <div className="p-8">Loading board...</div>;
   if (error) return <div className="p-8 text-red-600">{error}</div>;
@@ -126,6 +143,9 @@ export function BoardDetailPage() {
             task={selectedTask}
             onClose={() => setShowTaskModal(false)}
             onChanged={fetchColumns}
+            user={user}
+            boardMembers={board.members || []}
+            users={users}
           />
         )}
         {showColumnModal && selectedColumn && (

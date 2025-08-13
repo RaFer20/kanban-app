@@ -135,6 +135,7 @@ export const boardApi = {
       name: string;
       createdAt: string;
       updatedAt: string;
+      members: Array<{ userId: number; email: string; role: string }>;
     }>(`/api/board/boards/${boardId}`);
   },
   async getBoardColumns(boardId: number) {
@@ -183,9 +184,9 @@ export const boardApi = {
   },
   async updateTask(
     taskId: number,
-    data: { title?: string; description?: string; columnId?: number; order?: number }
+    data: { title?: string; description?: string; columnId?: number; order?: number; assigneeId?: number | null }
   ) {
-    return apiRequest<{ id: number }>(`/api/board/tasks/${taskId}`, {
+    return apiRequest(`/api/board/tasks/${taskId}`, {
       method: "PATCH",
       body: JSON.stringify(data),
     });

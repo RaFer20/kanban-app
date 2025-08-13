@@ -13,7 +13,7 @@ export async function createBoardWithOwner(name: string, userId: number) {
       data: { 
         name,
         ownerId: userId,
-       },
+      },
     });
     await tx.boardMembership.create({
       data: {
@@ -155,6 +155,7 @@ export async function getColumnsForBoard(boardId: number) {
           title: true,
           order: true,
           description: true,
+          assigneeId: true,
         }
       }
     }
@@ -246,7 +247,13 @@ export async function getTasksForColumn(columnId: number) {
  */
 export async function updateTask(
   taskId: number,
-  data: { title?: string; description?: string; columnId?: number; order?: number; assigneeId?: number }
+  data: {
+    title?: string;
+    description?: string;
+    columnId?: number;
+    order?: number;
+    assigneeId?: number | null;
+  }
 ) {
   return prisma.task.update({
     where: { id: taskId },
