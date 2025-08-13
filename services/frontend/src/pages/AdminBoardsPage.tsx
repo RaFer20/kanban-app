@@ -288,6 +288,7 @@ export function AdminBoardsPage() {
               >
                 <option value="">Select user</option>
                 {users
+                  .filter(u => !u.email.endsWith('@boardtests.com'))
                   .filter(u => !members.some(m => m.userId === u.id))
                   .map(u => (
                     <option key={u.id} value={u.id}>
