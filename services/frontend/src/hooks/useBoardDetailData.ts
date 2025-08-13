@@ -22,8 +22,14 @@ export function useBoardDetailData(boardId: string | undefined) {
       setLoading(true);
       setError(null);
       try {
-        const boardData = await boardApi.getBoard(Number(boardId));
-        setBoard(boardData);
+        const data = await boardApi.getBoard(Number(boardId));
+        setBoard({
+          ...data,
+          members: data.members.map((m: any) => ({
+            ...m,
+            role: m.role as "OWNER" | "EDITOR" | "VIEWER"
+          }))
+        });
         await fetchColumns();
       } catch {
         setError("Failed to load board details.");

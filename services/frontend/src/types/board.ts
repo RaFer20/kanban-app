@@ -3,6 +3,11 @@ export type Board = {
   name: string;
   createdAt: string;
   updatedAt: string;
+  members?: Array<{
+    userId: number;
+    email: string;
+    role: "OWNER" | "EDITOR" | "VIEWER";
+  }>;
 };
 
 export type Column = {
@@ -17,6 +22,7 @@ export type Task = {
   id: number;
   title: string;
   order: number;
+  assigneeId?: number | null;
   description?: string;
   columnId?: number;
 };

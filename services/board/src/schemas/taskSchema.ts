@@ -11,5 +11,5 @@ export const updateTaskSchema = z.object({
   description: z.string().optional(),
   order: z.number().int().optional(),
   columnId: z.number().int().optional(),
-  assigneeId: z.number().int().optional(),
+  assigneeId: z.number().int().nullable().optional(),
 });
