@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { arrayMove } from "@dnd-kit/sortable";
-import type { DragEndEvent } from "@dnd-kit/core";
+import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import type { Column } from "../types/board";
 import { boardApi } from "../lib/api";
 
@@ -12,6 +12,9 @@ export function useBoardDnD(columns: Column[], fetchColumns: () => Promise<void>
   async function handleDragEnd(event: DragEndEvent) {
     setError(null);
     const { active, over } = event;
+    // Debugging log
+    console.log("DnD handleDragEnd", { active, over, columns });
+
     if (!over) return;
 
     // --- COLUMN DRAG ---
@@ -52,6 +55,7 @@ export function useBoardDnD(columns: Column[], fetchColumns: () => Promise<void>
     if (!sourceCol || !destCol) return;
 
     if (sourceCol.id === destCol.id) {
+      // reorder within column
       const oldIndex = sourceCol.tasks.findIndex(
         t => t.id.toString() === active.id
       );
@@ -73,6 +77,7 @@ export function useBoardDnD(columns: Column[], fetchColumns: () => Promise<void>
         await fetchColumns();
       }
     } else {
+      // move to another column
       const task = sourceCol.tasks.find(t => t.id.toString() === active.id);
       if (task) {
         try {
@@ -95,12 +100,27 @@ export function useBoardDnD(columns: Column[], fetchColumns: () => Promise<void>
     }
   }
 
+  function handleDragStart(event: DragStartEvent) {
+    const { active } = event;
+    // If dragging a column
+    if (columns.some(col => col.id.toString() === active.id.toString())) {
+      setActiveColumnId(active.id.toString());
+      setActiveTaskId(null);
+    }
+    // If dragging a task
+    else {
+      setActiveTaskId(active.id.toString());
+      setActiveColumnId(null);
+    }
+  }
+
   return {
     activeTaskId,
     setActiveTaskId,
     activeColumnId,
     setActiveColumnId,
     handleDragEnd,
+    handleDragStart,
     error,
     setError,
   };

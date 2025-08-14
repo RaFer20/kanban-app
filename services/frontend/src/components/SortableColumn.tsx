@@ -3,6 +3,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { DroppableColumn } from "./DroppableColumn";
 import { DraggableTask } from "./DraggableTask";
 import { AddTaskForm } from "./AddTaskForm";
+import { DroppableGhost } from "./DroppableGhost";
 import type { Column, Task } from "../types/board";
 
 export function SortableColumn({
@@ -54,36 +55,46 @@ export function SortableColumn({
   }
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <h2 className="font-semibold mb-2 flex justify-between items-center">
-        <span
-          className="cursor-pointer hover:underline"
-          onClick={() => onColumnClick(col)}
-        >
+    <div ref={setNodeRef} style={style}>
+      <div className="flex items-center mb-2">
+        <span className="font-semibold flex-1" onClick={() => onColumnClick(col)}>
           {col.name}
         </span>
-      </h2>
+        <span
+          {...attributes}
+          {...listeners}
+          className="cursor-grab px-2"
+          title="Drag column"
+          style={{ display: "inline-block" }}
+        >
+          {/* Use an icon here */}
+          ☰
+        </span>
+      </div>
       <SortableContext
         id={`col-${col.id}`}
-        items={tasks.map(t => t.id.toString())}
+        items={[...tasks.map(t => t.id.toString()), `col-${col.id}`]} // <-- add ghost drop zone id here
         strategy={verticalListSortingStrategy}
       >
         <DroppableColumn col={col}>
-          <ul className="space-y-2">
-            {tasks && tasks.length > 0 ? (
-              tasks
-                .sort((a, b) => a.order - b.order)
-                .map(task => (
-                  <DraggableTask
-                    key={task.id}
-                    task={task}
-                    columnId={col.id}
-                    onClick={() => onTaskClick(task)}
-                    activeTaskId={activeTaskId}
-                  />
-                ))
+          <ul className="space-y-4 py-2 min-h-[60px] flex flex-col justify-center">
+            {tasks.length === 0 ? (
+              <DroppableGhost id={`col-${col.id}`} />
             ) : (
-              <li className="text-gray-500">No tasks</li>
+              <>
+                {tasks
+                  .sort((a, b) => a.order - b.order)
+                  .map(task => (
+                    <DraggableTask
+                      key={task.id}
+                      task={task}
+                      columnId={col.id}
+                      onClick={() => onTaskClick(task)}
+                      activeTaskId={activeTaskId}
+                    />
+                  ))}
+                <DroppableGhost id={`col-${col.id}`} />
+              </>
             )}
           </ul>
           <AddTaskForm columnId={col.id} onTaskAdded={onChanged} />

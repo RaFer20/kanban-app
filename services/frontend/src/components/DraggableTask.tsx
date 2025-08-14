@@ -33,7 +33,7 @@ export function DraggableTask({
   return (
     <li
       ref={setNodeRef}
-      style={style}
+      style={{ ...style, zIndex: 1 }}
       {...attributes}
       {...listeners}
       className="bg-white rounded-md shadow p-3 text-left min-w-[180px]"
