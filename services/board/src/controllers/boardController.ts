@@ -214,10 +214,23 @@ export async function getBoardHandler(
   res: Response
 ): Promise<void> {
   const boardId = Number(req.params.boardId);
+  const userId = req.user?.id;
+  if (typeof userId !== "number") {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   const board = await prisma.board.findUnique({
     where: { id: boardId },
   });
   if (!board) {
+    res.status(404).json({ error: "Board not found" });
+    return;
+  }
+  // Check membership
+  const membership = await prisma.boardMembership.findUnique({
+    where: { boardId_userId: { boardId, userId } }
+  });
+  if (!membership) {
     res.status(404).json({ error: "Board not found" });
     return;
   }
