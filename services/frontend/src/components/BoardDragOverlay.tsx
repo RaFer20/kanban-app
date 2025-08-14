@@ -24,22 +24,22 @@ export function BoardDragOverlay({
         <h2 className="font-semibold mb-2 flex justify-between items-center">
           <span>{col.name}</span>
         </h2>
-        <ul className="space-y-2">
+        <div className="space-y-2">
           {col.tasks && col.tasks.length > 0 ? (
             col.tasks
               .sort((a, b) => a.order - b.order)
               .map(task => (
-                <li
+                <div
                   key={task.id}
                   className="bg-white rounded-md shadow p-3 text-left min-w-[180px] opacity-70"
                 >
                   <span>{task.title}</span>
-                </li>
+                </div>
               ))
           ) : (
-            <li className="text-gray-500">No tasks</li>
+            <div className="text-gray-500">No tasks</div>
           )}
-        </ul>
+        </div>
       </div>
     );
   }
@@ -50,15 +50,22 @@ export function BoardDragOverlay({
     const task = col?.tasks.find(t => t.id.toString() === activeTaskId);
     if (!task) return null;
     return (
-      <li
-        className="bg-white rounded-md shadow p-3 text-left min-w-[180px]"
-        style={{
-          opacity: 0.9,
-          boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
-        }}
-      >
-        <span>{task.title}</span>
-      </li>
+      <ul className="space-y-2">
+        <li
+          className="bg-white rounded-md shadow p-3 text-left min-w-[180px]"
+          style={{
+            opacity: 0.9,
+            boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+            minWidth: "180px",
+            maxWidth: "320px",
+            margin: 0,
+            padding: "0.75rem",
+            pointerEvents: "none",
+          }}
+        >
+          <span>{task.title}</span>
+        </li>
+      </ul>
     );
   }
   return null;
