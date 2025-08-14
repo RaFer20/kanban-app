@@ -7,15 +7,22 @@ export function DraggableTask({
   task,
   columnId,
   onClick,
+  activeTaskId,
 }: {
   task: Task;
   columnId: number;
   onClick: () => void;
+  activeTaskId?: string | null;
 }) {
   const { attributes, listeners, setNodeRef, transform } = useSortable({
     id: task.id.toString(),
     data: { columnId: columnId.toString() },
   });
+
+  // Hide the original task while dragging
+  if (activeTaskId === task.id.toString()) {
+    return <li style={{ minHeight: 48 }} />;
+  }
 
   const style = {
     transform: CSS.Transform.toString(transform),
