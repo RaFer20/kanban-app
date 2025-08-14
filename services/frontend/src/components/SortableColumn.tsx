@@ -8,6 +8,7 @@ import type { Column, Task } from "../types/board";
 export function SortableColumn({
   col,
   tasks,
+  activeTaskId,
   activeColumnId,
   onTaskClick,
   onColumnClick,
@@ -78,6 +79,7 @@ export function SortableColumn({
                     task={task}
                     columnId={col.id}
                     onClick={() => onTaskClick(task)}
+                    activeTaskId={activeTaskId}
                   />
                 ))
             ) : (
