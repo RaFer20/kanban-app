@@ -12,3 +12,4 @@ export * from "./RegisterForm";
 export * from "./AddColumnForm";
 export * from "./BoardHeader";
 export * from "./BoardDragOverlay";
+export * from "./InviteMemberForm";
