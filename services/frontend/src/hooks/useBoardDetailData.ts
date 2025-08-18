@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
-import { boardApi } from "../lib/api";
+import { useState, useEffect } from "react";
 import type { Board, Column } from "../types/board";
+import { boardApi } from "../lib/api";
 
 export function useBoardDetailData(boardId: string | undefined) {
   const [board, setBoard] = useState<Board | null>(null);
@@ -17,29 +17,30 @@ export function useBoardDetailData(boardId: string | undefined) {
     }
   }
 
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await boardApi.getBoard(Number(boardId));
-        setBoard({
-          ...data,
-          members: data.members.map((m: any) => ({
-            ...m,
-            role: m.role as "OWNER" | "EDITOR" | "VIEWER"
-          }))
-        });
-        await fetchColumns();
-      } catch {
-        setError("Failed to load board details.");
-      } finally {
-        setLoading(false);
-      }
+  async function fetchBoard() {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await boardApi.getBoard(Number(boardId));
+      setBoard({
+        ...data,
+        members: data.members.map((m: any) => ({
+          ...m,
+          role: m.role as "OWNER" | "EDITOR" | "VIEWER"
+        }))
+      });
+      await fetchColumns();
+    } catch {
+      setError("Failed to load board details.");
+    } finally {
+      setLoading(false);
     }
-    if (boardId) fetchData();
+  }
+
+  useEffect(() => {
+    if (boardId) fetchBoard();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [boardId]);
 
-  return { board, columns, setColumns, loading, error, fetchColumns };
+  return { board, columns, setColumns, loading, error, fetchColumns, fetchBoard };
 }

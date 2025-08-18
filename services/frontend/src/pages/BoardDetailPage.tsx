@@ -12,7 +12,7 @@ import {
   SortableContext,
   horizontalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { SortableColumn, TaskModal, ColumnModal, SimpleModal, AddColumnForm, BoardHeader, BoardDragOverlay, InviteMemberForm } from "../components";
+import { SortableColumn, TaskModal, ColumnModal, SimpleModal, AddColumnForm, BoardHeader, BoardDragOverlay, ManageMembersPanel } from "../components";
 import { useBoardDnD } from "../hooks/useBoardDnD";
 import { useBoardDetailState } from "../hooks/useBoardDetailState";
 import { useBoardDetailData } from "../hooks/useBoardDetailData";
@@ -24,7 +24,7 @@ import { authApi, boardApi } from "../lib/api";
 
 export function BoardDetailPage() {
   const { boardId } = useParams();
-  const { board, columns, loading, error, fetchColumns } = useBoardDetailData(boardId);
+  const { board, columns, loading, error, fetchColumns, fetchBoard } = useBoardDetailData(boardId);
   const [showAddColumn, setShowAddColumn] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
@@ -112,19 +112,26 @@ export function BoardDetailPage() {
                 className="bg-green-600 text-white px-4 py-2 rounded"
                 onClick={() => setShowInviteForm((v) => !v)}
               >
-                Invite User
+                Manage Members
               </button>
             )
           }
         />
         {showInviteForm && user?.id === ownerId && (
-          <InviteMemberForm
-            users={users}
+          <ManageMembersPanel
             members={board.members || []}
+            users={users}
             onInvite={async (userId, role) => {
               await boardApi.addBoardMember(board.id, userId, role);
-              fetchColumns();
-              setShowInviteForm(false);
+              await fetchBoard();
+            }}
+            onRemove={async (userId) => {
+              await boardApi.removeBoardMember(board.id, userId);
+              await fetchBoard();
+            }}
+            onChangeRole={async (userId, role) => {
+              await boardApi.updateBoardMemberRole(board.id, userId, role);
+              await fetchBoard();
             }}
           />
         )}
