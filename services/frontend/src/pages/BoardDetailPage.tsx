@@ -12,14 +12,15 @@ import {
   SortableContext,
   horizontalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { SortableColumn, TaskModal, ColumnModal, SimpleModal, AddColumnForm, BoardHeader, BoardDragOverlay } from "../components";
+import { SortableColumn, TaskModal, ColumnModal, SimpleModal, AddColumnForm, BoardHeader, BoardDragOverlay, InviteMemberForm } from "../components";
 import { useBoardDnD } from "../hooks/useBoardDnD";
 import { useBoardDetailState } from "../hooks/useBoardDetailState";
 import { useBoardDetailData } from "../hooks/useBoardDetailData";
 import { useAuth } from "../hooks/useAuth";
 import type { Task, Column } from "../types/board";
 import type { DragStartEvent, DragEndEvent } from "@dnd-kit/core";
-import { authApi } from "../lib/api";
+import { authApi, boardApi } from "../lib/api";
+
 
 export function BoardDetailPage() {
   const { boardId } = useParams();
@@ -28,6 +29,7 @@ export function BoardDetailPage() {
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
   const [users, setUsers] = useState<{ id: number; email: string }[]>([]);
+  const [showInviteForm, setShowInviteForm] = useState(false);
 
   const {
     selectedTask, setSelectedTask, showTaskModal, setShowTaskModal,
@@ -61,6 +63,8 @@ export function BoardDetailPage() {
   if (loading) return <div className="p-8">Loading board...</div>;
   if (error) return <div className="p-8 text-red-600">{error}</div>;
   if (!board) return <div className="p-8">Board not found.</div>;
+
+  const ownerId = board.members?.find(m => m.role === "OWNER")?.userId;
 
   function handleTaskClick(task: Task) {
     setSelectedTask(task);
@@ -102,7 +106,28 @@ export function BoardDetailPage() {
         <BoardHeader
           boardName={board.name}
           onAddColumn={() => setShowAddColumn(true)}
+          actions={
+            user?.id === ownerId && (
+              <button
+                className="bg-green-600 text-white px-4 py-2 rounded"
+                onClick={() => setShowInviteForm((v) => !v)}
+              >
+                Invite User
+              </button>
+            )
+          }
         />
+        {showInviteForm && user?.id === ownerId && (
+          <InviteMemberForm
+            users={users}
+            members={board.members || []}
+            onInvite={async (userId, role) => {
+              await boardApi.addBoardMember(board.id, userId, role);
+              fetchColumns();
+              setShowInviteForm(false);
+            }}
+          />
+        )}
         <SimpleModal open={showAddColumn} onClose={() => setShowAddColumn(false)}>
           <AddColumnForm
             boardId={Number(boardId)}
