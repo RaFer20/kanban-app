@@ -175,7 +175,7 @@ export async function deleteBoardHandler(
     }
     if (role !== 'OWNER') {
       req.log?.warn({ userId, boardId, role }, 'Insufficient role for board delete');
-      res.status(403).json({ error: "Forbidden" });
+      res.status(403).json({ error: "Only the board owner can delete this board" });
       return;
     }
   }
@@ -350,7 +350,7 @@ export async function restoreBoardHandler(
   const boardId = Number(req.params.boardId);
   const isAdmin = req.user?.role === 'admin';
   if (!isAdmin) {
-    res.status(403).json({ error: "Forbidden" });
+    res.status(403).json({ error: "You do not have permission to perform this action." });
     return;
   }
   try {

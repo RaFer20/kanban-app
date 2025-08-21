@@ -92,7 +92,7 @@ export async function createTaskHandler(
   }
   if (!['OWNER', 'EDITOR'].includes(role)) {
     req.log?.warn({ userId, boardId: column.boardId, role }, 'Forbidden: insufficient role for createTask');
-    res.status(403).json({ error: 'Forbidden' });
+    res.status(403).json({ error: 'You do not have permission to perform this action.' });
     return;
   }
   try {
@@ -176,7 +176,7 @@ export async function getTasksForColumnHandler(
   }
   // Member but not allowed: return 403 (shouldn't happen for listing, but for completeness)
   if (!['OWNER', 'EDITOR', 'VIEWER'].includes(role)) {
-    res.status(403).json({ error: "Forbidden" });
+    res.status(403).json({ error: "You do not have permission to perform this action." });
     return;
   }
 
@@ -272,7 +272,7 @@ export async function updateTaskHandler(req: Request, res: Response): Promise<vo
   // Member but not allowed: return 403
   if (!['OWNER', 'EDITOR'].includes(role)) {
     req.log?.warn({ userId, taskId: taskIdNum, role }, 'Forbidden: insufficient role for updateTask');
-    res.status(403).json({ error: 'Forbidden' });
+    res.status(403).json({ error: 'You do not have permission to perform this action.' });
     return;
   }
   try {
@@ -350,7 +350,7 @@ export async function deleteTaskHandler(req: Request, res: Response): Promise<vo
   // Member but not allowed: return 403
   if (!['OWNER', 'EDITOR'].includes(role)) {
     req.log?.warn({ userId, taskId: taskIdNum, role }, 'Forbidden: insufficient role for deleteTask');
-    res.status(403).json({ error: 'Forbidden' });
+    res.status(403).json({ error: 'You do not have permission to perform this action.' });
     return;
   }
   try {

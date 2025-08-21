@@ -130,7 +130,7 @@ export async function listBoardMembersHandler(
     }
     if (!['OWNER', 'EDITOR'].includes(role)) {
       req.log?.warn({ userId, boardId, role }, 'Forbidden: insufficient role for listBoardMembers');
-      res.status(403).json({ error: 'Forbidden' });
+      res.status(403).json({ error: 'You do not have permission to perform this action.' });
       return;
     }
   }
