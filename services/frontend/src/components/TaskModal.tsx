@@ -2,6 +2,7 @@ import { useState } from "react";
 import { SimpleModal } from "./SimpleModal";
 import type { Task } from "../types/board";
 import { boardApi } from "../lib/api";
+import { getEmail } from "../lib/userUtils";
 
 export function TaskModal({
   task,
@@ -72,14 +73,6 @@ export function TaskModal({
     }
   }
 
-  function getEmail(userId: number) {
-    const user = users.find(u => u.id === userId);
-    if (user) return user.email;
-    const member = boardMembers.find(m => m.userId === userId);
-    if (member && member.email) return member.email;
-    return `User ${userId}`;
-  }
-
   return (
     <SimpleModal
       open={true}
@@ -133,7 +126,7 @@ export function TaskModal({
                 <option value="">Unassigned</option>
                 {boardMembers.map(m => (
                   <option key={m.userId} value={m.userId}>
-                    {getEmail(m.userId)}
+                    {getEmail(m.userId, users, boardMembers)}
                     {m.userId === myUserId ? " (me)" : ""}
                   </option>
                 ))}
@@ -150,7 +143,7 @@ export function TaskModal({
           {/* Show assigned user if available */}
           {task.assigneeId && (
             <div className="text-xs text-gray-500 mb-2">
-              Assigned to: {getEmail(task.assigneeId)}
+              Assigned to: {getEmail(task.assigneeId, users, boardMembers)}
             </div>
           )}
           <div className="text-xs text-gray-400 mb-2">Role: {userRole}</div>

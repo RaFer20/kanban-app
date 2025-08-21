@@ -14,6 +14,8 @@ export function SortableColumn({
   onTaskClick,
   onColumnClick,
   onChanged,
+  users,
+  boardMembers,
 }: {
   col: Column;
   tasks: Task[];
@@ -22,6 +24,8 @@ export function SortableColumn({
   onTaskClick: (task: Task) => void;
   onColumnClick: (col: Column) => void;
   onChanged: () => void;
+  users: any;
+  boardMembers: Array<{ userId: number; email: string }>;
 }) {
   const {
     attributes,
@@ -73,7 +77,7 @@ export function SortableColumn({
       </div>
       <SortableContext
         id={`col-${col.id}`}
-        items={[...tasks.map(t => t.id.toString()), `col-${col.id}`]} // <-- add ghost drop zone id here
+        items={[...tasks.map(t => t.id.toString()), `col-${col.id}`]}
         strategy={verticalListSortingStrategy}
       >
         <DroppableColumn col={col}>
@@ -91,6 +95,8 @@ export function SortableColumn({
                       columnId={col.id}
                       onClick={() => onTaskClick(task)}
                       activeTaskId={activeTaskId}
+                      users={users}
+                      boardMembers={boardMembers}
                     />
                   ))}
                 <DroppableGhost id={`col-${col.id}`} />

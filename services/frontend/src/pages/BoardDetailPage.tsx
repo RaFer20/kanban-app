@@ -178,7 +178,9 @@ export function BoardDetailPage() {
                 activeColumnId={activeColumnId}
                 onTaskClick={handleTaskClick}
                 onColumnClick={handleColumnClick}
-                onChanged={fetchColumns}
+                onChanged={fetchBoard}
+                users={users}
+                boardMembers={board.members || []}
               />
             ))}
           </SortableContext>
