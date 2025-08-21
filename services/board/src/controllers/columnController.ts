@@ -84,7 +84,7 @@ export async function createColumnHandler(
   // Member but not allowed: return 403
   if (!['OWNER', 'EDITOR'].includes(role)) {
     req.log?.warn({ userId, boardId: boardIdNum, role }, 'Forbidden: insufficient role for createColumn');
-    res.status(403).json({ error: 'Forbidden' });
+    res.status(403).json({ error: 'You do not have permission to perform this action.' });
     return;
   }
   try {
@@ -165,7 +165,7 @@ export async function getColumnsForBoardHandler(
   }
   if (!['OWNER', 'EDITOR', 'VIEWER'].includes(role)) {
     req.log?.warn({ userId, boardId: boardIdNum, role }, 'Forbidden: insufficient role for getColumns');
-    res.status(403).json({ error: 'Forbidden' });
+    res.status(403).json({ error: 'You do not have permission to perform this action.' });
     return;
   }
   try {
@@ -250,7 +250,7 @@ export async function updateColumnHandler(req: Request, res: Response): Promise<
   // Member but not allowed: return 403
   if (!['OWNER', 'EDITOR'].includes(role)) {
     req.log?.warn({ userId, columnId: columnIdNum, role }, 'Forbidden: insufficient role for updateColumn');
-    res.status(403).json({ error: 'Forbidden' });
+    res.status(403).json({ error: 'You do not have permission to perform this action.' });
     return;
   }
   try {
@@ -323,7 +323,7 @@ export async function deleteColumnHandler(req: Request, res: Response): Promise<
   // Member but not allowed: return 403
   if (!['OWNER', 'EDITOR'].includes(role)) {
     req.log?.warn({ userId, columnId: columnIdNum, role }, 'Forbidden: insufficient role for deleteColumn');
-    res.status(403).json({ error: 'Forbidden' });
+    res.status(403).json({ error: 'You do not have permission to perform this action.' });
     return;
   }
   try {
