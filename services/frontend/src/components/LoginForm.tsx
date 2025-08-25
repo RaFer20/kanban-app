@@ -46,6 +46,12 @@ export function LoginForm() {
       >
         Login
       </button>
+      {/* Add guest account info below the login button */}
+      <div className="mt-4 text-center text-sm text-gray-700 bg-yellow-50 border border-yellow-300 rounded p-2">
+        <strong>Try as a guest:</strong><br />
+        Email: <span className="font-mono">guest@example.com</span><br />
+        Password: <span className="font-mono">guest123</span>
+      </div>
       <div className="mt-4 text-center">
         <span>Don't have an account? </span>
         <Link to="/register" className="text-blue-600 hover:underline">
