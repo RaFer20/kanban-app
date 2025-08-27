@@ -14,7 +14,7 @@ export async function ensureTaskActive(taskId: number) {
   return prisma.task.findUnique({
     where: { id: taskId },
     include: { column: { select: { boardId: true } } }
-  }).then(task => {
+  }).then((task: any) => {
     if (!task || task.deletedAt) return null;
     return { ...task, boardId: task.column.boardId };
   });

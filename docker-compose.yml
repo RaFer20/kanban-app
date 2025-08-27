@@ -149,7 +149,7 @@ services:
   nginx:
     build:
       context: ./services/frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.local
     container_name: nginx
     ports:
       - "80:80"

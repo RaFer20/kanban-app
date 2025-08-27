@@ -9,7 +9,7 @@ async function main() {
     where: { userId: { in: [guestUserId, bobUserId] } },
     select: { boardId: true }
   });
-  const boardIds = [...new Set(memberships.map(m => m.boardId))];
+  const boardIds = [...new Set(memberships.map((m: { boardId: number }) => m.boardId))];
 
   // Delete each board only once
   for (const boardId of boardIds) {

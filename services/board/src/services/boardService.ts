@@ -1,5 +1,6 @@
 import prisma from '../prisma';
 import { ExecException } from 'child_process';
+import { Prisma } from '@prisma/client';
 
 /**
  * Creates a new board and automatically assigns the owner.
@@ -8,7 +9,7 @@ import { ExecException } from 'child_process';
  * @returns The created board object.
  */
 export async function createBoardWithOwner(name: string, userId: number) {
-  return prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const board = await tx.board.create({
       data: { 
         name,
@@ -97,7 +98,7 @@ export async function getUserRoleForBoard(boardId: number, userId: number) {
 export async function deleteBoard(boardId: number) {
   const now = new Date();
   // Soft-delete board, columns, and tasks in a transaction
-  return prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     await tx.board.update({
       where: { id: boardId },
       data: { deletedAt: now },
@@ -185,7 +186,7 @@ export async function updateColumn(
  */
 export async function deleteColumn(columnId: number) {
   const now = new Date();
-  return prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     await tx.column.update({
       where: { id: columnId },
       data: { deletedAt: now },
@@ -358,7 +359,7 @@ export async function resetDemoData() {
  * @returns The restored board object.
  */
 export async function restoreBoard(boardId: number) {
-  return prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     await tx.board.update({
       where: { id: boardId },
       data: { deletedAt: null },
@@ -384,7 +385,7 @@ export async function getBoardsForUserWithRoles(userId: number) {
     where: { userId },
     include: { board: true },
   });
-  return memberships.map(m => ({
+  return memberships.map((m: any) => ({
     board: m.board,
     role: m.role,
   }));
