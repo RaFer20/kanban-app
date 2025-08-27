@@ -1,0 +1,39 @@
+# fly.toml app configuration file generated for auth-kanban on 2025-08-26T09:37:09-05:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'auth-kanban'
+primary_region = 'mia'
+
+[build]
+
+[env]
+  ACCESS_TOKEN_EXPIRE_MINUTES = '30'
+  ALGORITHM = 'HS256'
+  DATABASE_URL = 'postgresql+asyncpg://postgres:nuSA1weze1W71mp@kanban-auth-db.internal:5432/postgres'
+  DATABASE_URL_SYNC = 'postgresql://postgres:nuSA1weze1W71mp@kanban-auth-db.internal:5432/postgres'
+  DB_HOST = 'kanban-auth-db.internal'
+  DB_PORT = '5432'
+  GUEST_EMAIL = 'guest@example.com'
+  GUEST_PASSWORD = 'guest123'
+  OTEL_EXPORTER_OTLP_ENDPOINT = 'http://otel-collector:4317'
+  OTEL_RESOURCE_ATTRIBUTES = 'service.name=auth-service'
+  POSTGRES_DB = 'postgres'
+  POSTGRES_PASSWORD = 'nuSA1weze1W71mp'
+  POSTGRES_USER = 'postgres'
+  REFRESH_TOKEN_EXPIRE_MINUTES = '10080'
+  SECRET_KEY = 'h4hlo6G_EVRQlcz3FzqPrPjlL-jvflzUBt9e5BSfkjo'
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1

@@ -10,3 +10,4 @@ poetry.lock
 .prisma
 .mypy_cache
 .vscode/
+services/board/src/generated/prisma/
