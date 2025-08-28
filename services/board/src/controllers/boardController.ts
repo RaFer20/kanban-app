@@ -226,7 +226,22 @@ export async function getBoardHandler(
     res.status(404).json({ error: "Board not found" });
     return;
   }
-  // Check membership
+  // Allow admins to view any board
+  if (req.user?.role === "admin") {
+    const memberships = await prisma.boardMembership.findMany({
+      where: { boardId },
+      select: { userId: true, role: true }
+    });
+    res.json({
+      id: board.id,
+      name: board.name,
+      createdAt: board.createdAt,
+      updatedAt: board.updatedAt,
+      members: memberships
+    });
+    return;
+  }
+  // Check membership for non-admins
   const membership = await prisma.boardMembership.findUnique({
     where: { boardId_userId: { boardId, userId } }
   });
