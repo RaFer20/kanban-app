@@ -14,3 +14,6 @@ export * from "./BoardHeader";
 export * from "./BoardDragOverlay";
 export * from "./InviteMemberForm";
 export * from "./ManageMembersPanel";
+export * from "./UserInfoModal";
+export * from "./AuthHeader";
+export * from "./CatchAllRedirect";

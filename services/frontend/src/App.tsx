@@ -12,12 +12,14 @@ import { AdminUsersPage } from './pages/AdminUsersPage';
 import { AdminBoardsPage } from './pages/AdminBoardsPage'; 
 import { AdminSystemPage } from './pages/AdminSystemPage';
 import { BoardPermissionsPage } from './pages/BoardPermissionsPage';
+import { AuthHeader, CatchAllRedirect } from "./components";
 
 // Auth Context for managing user state
 interface User {
   id: number;
   email: string;
   role: string;
+  created_at?: string | null;
 }
 
 interface AuthContextType {
@@ -221,37 +223,6 @@ function App() {
       </BrowserRouter>
     </AuthProvider>
   )
-}
-
-function AuthHeader() {
-  const { user, logout } = useAuth();
-  
-  if (!user) return null;
-  
-  return (
-    <div className="flex items-center space-x-4">
-      <span className="text-black">Welcome, {user.email}</span>
-      {/* Show admin panel link if user is admin */}
-      {user.role === "admin" && (
-        <Button asChild>
-          <Link to="/admin">Admin Panel</Link>
-        </Button>
-      )}
-      <Button 
-        variant="destructive"
-        size="sm"
-        onClick={logout}
-      >
-        Logout
-      </Button>
-    </div>
-  );
-}
-
-function CatchAllRedirect() {
-  const { user, loading } = useAuth();
-  if (loading) return <div>Loading...</div>;
-  return <Navigate to={user ? "/boards" : "/login"} />;
 }
 
 export { useAuth };
