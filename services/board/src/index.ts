@@ -8,6 +8,7 @@ import { setupMetrics, boardsCreated, tasksCreated, httpRequestDuration } from '
 import { logger } from './logger';
 import { v4 as uuidv4 } from 'uuid';
 import rateLimit from "express-rate-limit";
+import cors from "cors";
 
 declare module 'express-serve-static-core' {
   interface Request {
@@ -18,7 +19,7 @@ declare module 'express-serve-static-core' {
 const app = express();
 app.use(express.json());
 app.use(cookieParser());
-
+app.use(cors({ origin: "http://localhost:5173" }));
 
 // Request ID middleware
 app.use((req, res, next) => {
@@ -43,8 +44,8 @@ app.use((req, res, next) => {
 
 // Protect all /api routes except /api/docs
 app.use("/api", (req, res, next) => {
-  if (req.path.startsWith("/docs")) {
-    // Allow access to Swagger UI without auth
+  if (req.path.startsWith("/docs") || req.path === "/health") {
+    // Allow access to Swagger UI and health check without auth
     return next();
   }
   return authenticateJWT(req, res, next);
