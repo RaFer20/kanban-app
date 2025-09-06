@@ -101,4 +101,8 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler) #type
 # Include your existing API routes
 app.include_router(routes.router, prefix="/api/v1")
 
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
 logger.info(f"Running {settings.project_name}")
