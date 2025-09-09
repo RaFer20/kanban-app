@@ -20,6 +20,17 @@ export function LoginForm() {
     }
   };
 
+  // Add this handler for guest login
+  const handleGuestLogin = async () => {
+    setError(null);
+    try {
+      await login("guest@example.com", "guest123");
+      navigate("/boards");
+    } catch (err) {
+      setError("Guest login failed");
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit} className="bg-white p-8 rounded shadow-md w-full max-w-sm border-2 border-blue-300">
       <h2 className="text-2xl font-bold mb-6 text-center">Login</h2>
@@ -46,12 +57,19 @@ export function LoginForm() {
       >
         Login
       </button>
-      {/* Add guest account info below the login button */}
-      <div className="mt-4 text-center text-sm text-gray-700 bg-yellow-50 border border-yellow-300 rounded p-2">
+      {/* Add guest login button below */}
+      <button
+        type="button"
+        className="w-full bg-teal-600 text-white py-2 rounded mt-2 hover:bg-teal-700 transition"
+        onClick={handleGuestLogin}
+      >
+        Log in as Guest
+      </button>
+      {/* <div className="mt-4 text-center text-sm text-gray-700 bg-yellow-50 border border-yellow-300 rounded p-2">
         <strong>Try as a guest:</strong><br />
         Email: <span className="font-mono">guest@example.com</span><br />
         Password: <span className="font-mono">guest123</span>
-      </div>
+      </div> */}
       <div className="mt-4 text-center">
         <span>Don't have an account? </span>
         <Link to="/register" className="text-blue-600 hover:underline">
