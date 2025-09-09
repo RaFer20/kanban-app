@@ -20,7 +20,6 @@ export function LoginForm() {
     }
   };
 
-  // Add this handler for guest login
   const handleGuestLogin = async () => {
     setError(null);
     try {
@@ -57,7 +56,7 @@ export function LoginForm() {
       >
         Login
       </button>
-      {/* Add guest login button below */}
+
       <button
         type="button"
         className="w-full bg-teal-600 text-white py-2 rounded mt-2 hover:bg-teal-700 transition"
@@ -65,11 +64,6 @@ export function LoginForm() {
       >
         Log in as Guest
       </button>
-      {/* <div className="mt-4 text-center text-sm text-gray-700 bg-yellow-50 border border-yellow-300 rounded p-2">
-        <strong>Try as a guest:</strong><br />
-        Email: <span className="font-mono">guest@example.com</span><br />
-        Password: <span className="font-mono">guest123</span>
-      </div> */}
       <div className="mt-4 text-center">
         <span>Don't have an account? </span>
         <Link to="/register" className="text-blue-600 hover:underline">
