@@ -57,13 +57,13 @@ export function AddTaskForm({
           <div className="flex gap-2">
             <button
               type="submit"
-              className="bg-blue-500 text-white px-4 py-2 rounded"
+              className="bg-blue-500 text-white px-4 py-2 rounded transition hover:bg-blue-600 hover:scale-105"
             >
               Add
             </button>
             <button
               type="button"
-              className="px-4 py-2"
+              className="px-4 py-2 transition hover:bg-gray-200 hover:scale-105"
               onClick={() => setShow(false)}
             >
               Cancel

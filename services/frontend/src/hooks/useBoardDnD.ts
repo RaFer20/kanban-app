@@ -102,6 +102,8 @@ export function useBoardDnD(columns: Column[], fetchColumns: () => Promise<void>
 
   function handleDragStart(event: DragStartEvent) {
     const { active } = event;
+    // Debugging
+    console.log("DragStart", active.id, columns.map(c => c.id));
     // If dragging a column
     if (columns.some(col => col.id.toString() === active.id.toString())) {
       setActiveColumnId(active.id.toString());

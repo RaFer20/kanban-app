@@ -59,7 +59,11 @@ export function SortableColumn({
   }
 
   return (
-    <div ref={setNodeRef} style={style}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="transition hover:scale-105 hover:shadow-lg"
+    >
       <div className="flex items-center mb-2">
         <span className="font-semibold flex-1" onClick={() => onColumnClick(col)}>
           {col.name}

@@ -38,10 +38,10 @@ export function DraggableTask({
   return (
     <li
       ref={setNodeRef}
-      style={{ ...style, zIndex: 1 }}
+      style={style}
+      className="bg-white rounded shadow p-2 mb-2 transition hover:scale-105 hover:shadow-lg cursor-pointer"
       {...attributes}
       {...listeners}
-      className="bg-white rounded-md shadow p-3 text-left min-w-[180px] relative"
       onClick={onClick}
     >
       <span>{task.title}</span>

@@ -106,3 +106,5 @@ async def health():
     return {"status": "ok"}
 
 logger.info(f"Running {settings.project_name}")
+# Debbugging
+print("DATABASE_URL at startup:", settings.database_url)
