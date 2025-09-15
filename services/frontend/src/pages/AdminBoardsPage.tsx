@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { authApi, boardApi } from "../lib/api";
 import { SimpleModal } from "../components/SimpleModal";
+import { useAuth } from "../hooks/useAuth";
 
 interface AdminBoard {
   id: number;
@@ -24,22 +25,27 @@ export function AdminBoardsPage() {
   const [addUserId, setAddUserId] = useState("");
   const [addRole, setAddRole] = useState("VIEWER");
   const [addError, setAddError] = useState<string | null>(null);
+  const { user } = useAuth(); // Get current user
 
   useEffect(() => {
-    fetchBoards();
-  }, []);
+    if (user?.role === "admin") {
+      fetchBoards();
+    }
+  }, [user]);
 
   useEffect(() => {
     async function fetchUsers() {
-      try {
-        const allUsers = await authApi.getAllUsers();
-        setUsers(allUsers);
-      } catch (e) {
-        // handle error
+      if (user?.role === "admin") {
+        try {
+          const allUsers = await authApi.getAllUsers();
+          setUsers(allUsers);
+        } catch (e) {
+          // handle error
+        }
       }
     }
     fetchUsers();
-  }, []);
+  }, [user]);
 
   async function fetchBoards() {
     try {

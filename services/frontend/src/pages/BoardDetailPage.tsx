@@ -164,7 +164,7 @@ export function BoardDetailPage() {
             <button className="ml-2 text-xs underline" onClick={() => setDndError(null)}>Dismiss</button>
           </div>
         )}
-        <div className="flex gap-4">
+        <div className="flex gap-4 flex-wrap md:flex-nowrap">
           <SortableContext
             items={columns.map(col => col.id.toString())}
             strategy={horizontalListSortingStrategy}

@@ -144,3 +144,16 @@ a:hover {
     color-scheme: light;
   }
 }
+
+@media (max-width: 600px) {
+  .p-8 {
+    padding: 1rem !important;
+  }
+  h1, h2 {
+    font-size: 1.5rem !important;
+    text-align: left;
+  }
+  .gap-4 {
+    gap: 1rem !important;
+  }
+}

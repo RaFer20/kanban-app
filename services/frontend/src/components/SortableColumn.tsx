@@ -42,12 +42,9 @@ export function SortableColumn({
     transition,
     opacity: isDragging ? 0.7 : 1,
     cursor: "grab",
-    minWidth: 220,
-    maxWidth: 320,
     background: "var(--card, #f3f4f6)",
     borderRadius: "0.5rem",
     padding: "1rem",
-    marginRight: "1rem",
     boxShadow: isDragging
       ? "0 4px 16px rgba(0,0,0,0.12)"
       : "0 1px 4px rgba(0,0,0,0.04)",
@@ -55,14 +52,19 @@ export function SortableColumn({
 
   if (activeColumnId === col.id.toString()) {
     // Hide the original column while dragging
-    return <div style={{ minWidth: 220, maxWidth: 320, marginRight: "1rem" }} />;
+    return (
+      <div
+        className="w-full md:w-80 mb-4 md:mb-0"
+        style={{ minWidth: 220, maxWidth: 320 }}
+      />
+    );
   }
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="transition hover:scale-105 hover:shadow-lg"
+      className="transition hover:scale-105 hover:shadow-lg w-full md:w-80 mb-4 md:mb-0"
     >
       <div className="flex items-center mb-2">
         <span className="font-semibold flex-1" onClick={() => onColumnClick(col)}>
