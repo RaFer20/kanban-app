@@ -39,7 +39,7 @@ export function BoardDetailPage() {
   const { user } = useAuth();
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { delay: 150, tolerance: 5 } })
   );
 
   const {
