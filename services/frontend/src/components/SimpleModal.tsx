@@ -18,7 +18,7 @@ export function SimpleModal({
   return createPortal(
     <div
       style={{ backgroundColor: "rgba(0,0,0,0.3)" }}
-      className="fixed inset-0 flex items-center justify-center z-50"
+      className="fixed inset-0 flex items-center justify-center z-50 px-2"
       tabIndex={-1}
       aria-modal="true"
       role="dialog"
@@ -26,7 +26,6 @@ export function SimpleModal({
         mouseDownTarget.current = e.target;
       }}
       onMouseUp={e => {
-        // Only close if both down and up were on the overlay itself
         if (
           mouseDownTarget.current === e.currentTarget &&
           e.target === e.currentTarget
@@ -37,11 +36,11 @@ export function SimpleModal({
       }}
     >
       <div
-        className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative"
+        className="bg-white rounded-lg shadow-lg p-4 sm:p-6 w-full max-w-xs sm:max-w-md relative"
         onClick={e => e.stopPropagation()}
       >
         <button
-          className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+          className="absolute top-2 right-2 text-2xl text-gray-500 hover:text-gray-700"
           onClick={onClose}
         >
           ×

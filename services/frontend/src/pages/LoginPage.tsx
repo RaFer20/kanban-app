@@ -23,8 +23,10 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen">
-      <LoginForm />
+    <div className="flex flex-col items-center min-h-screen px-4 py-8">
+      <div className="w-full max-w-xs sm:max-w-sm bg-white rounded shadow p-6">
+        <LoginForm />
+      </div>
     </div>
   );
 }

@@ -44,13 +44,16 @@ export function RegisterForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white p-8 rounded shadow-md w-full max-w-sm border-2 border-blue-300">
-      <h2 className="text-2xl font-bold mb-6 text-center">Register</h2>
-      {error && <div className="mb-4 text-red-600">{error}</div>}
+    <form
+      onSubmit={handleSubmit}
+      className="bg-white p-6 sm:p-8 rounded shadow-md w-full max-w-xs sm:max-w-sm border-2 border-blue-300 mx-auto flex flex-col gap-4"
+    >
+      <h2 className="text-2xl font-bold mb-2 sm:mb-6 text-center">Register</h2>
+      {error && <div className="mb-2 sm:mb-4 text-red-600">{error}</div>}
       <input
         type="email"
         placeholder="Email"
-        className="input-visible-border w-full p-2 mb-4 rounded shadow-md focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition"
+        className="input-visible-border w-full p-2 rounded shadow-md focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition"
         value={email}
         onChange={e => setEmail(e.target.value)}
         required
@@ -58,7 +61,7 @@ export function RegisterForm() {
       <input
         type="password"
         placeholder="Password (min 8 chars)"
-        className="input-visible-border w-full p-2 mb-4 rounded shadow-md focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition"
+        className="input-visible-border w-full p-2 rounded shadow-md focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition"
         value={password}
         onChange={e => setPassword(e.target.value)}
         required
@@ -66,7 +69,7 @@ export function RegisterForm() {
       <input
         type="password"
         placeholder="Confirm Password"
-        className="input-visible-border w-full p-2 mb-6 rounded shadow-md focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition"
+        className="input-visible-border w-full p-2 rounded shadow-md focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition"
         value={confirmPassword}
         onChange={e => setConfirmPassword(e.target.value)}
         required
@@ -78,7 +81,7 @@ export function RegisterForm() {
       >
         {loading ? "Registering..." : "Register"}
       </button>
-      <div className="mt-4 text-center">
+      <div className="mt-2 sm:mt-4 text-center text-sm">
         <span>Already have an account? </span>
         <Link to="/login" className="text-blue-600 hover:underline">
           Login

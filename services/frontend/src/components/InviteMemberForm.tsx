@@ -35,18 +35,21 @@ export function InviteMemberForm({ users, members, onInvite }: InviteMemberFormP
   }
 
   return (
-    <form onSubmit={handleInvite} className="flex gap-2 items-center mb-4">
+    <form
+      onSubmit={handleInvite}
+      className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center mb-4"
+    >
       <input
         type="text"
         placeholder="Search email…"
         value={search}
         onChange={e => setSearch(e.target.value)}
-        className="border px-2 py-1 rounded w-56"
+        className="border px-2 py-1 rounded w-full sm:w-56"
       />
       <select
         value={selectedUser ?? ""}
         onChange={e => setSelectedUser(Number(e.target.value))}
-        className="border px-2 py-1 rounded w-56"
+        className="border px-2 py-1 rounded w-full sm:w-56"
         required
       >
         <option value="">Select user</option>
@@ -61,19 +64,19 @@ export function InviteMemberForm({ users, members, onInvite }: InviteMemberFormP
       <select
         value={role}
         onChange={e => setRole(e.target.value)}
-        className="border px-2 py-1 rounded"
+        className="border px-2 py-1 rounded w-full sm:w-auto"
       >
         <option value="EDITOR">EDITOR</option>
         <option value="VIEWER">VIEWER</option>
       </select>
       <button
         type="submit"
-        className="bg-blue-600 text-white px-4 py-1 rounded"
+        className="bg-blue-600 text-white px-4 py-1 rounded w-full sm:w-auto"
         disabled={!selectedUser}
       >
         Invite
       </button>
-      {error && <span className="text-red-600 ml-2">{error}</span>}
+      {error && <span className="text-red-600 sm:ml-2 mt-2 sm:mt-0">{error}</span>}
     </form>
   );
 }
