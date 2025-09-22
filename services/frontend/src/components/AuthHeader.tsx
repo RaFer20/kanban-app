@@ -13,7 +13,6 @@ export function AuthHeader() {
 
   useEffect(() => {
     if (!user) return;
-    // Fetch counts of boards owned and member of
     boardApi.getOwnedBoards().then(result => {
       setBoardsOwned(result.items.length);
     });
@@ -25,22 +24,23 @@ export function AuthHeader() {
   if (!user) return null;
 
   return (
-    <div className="flex items-center space-x-4">
+    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:space-x-4 w-full">
       <span
-        className="text-black cursor-pointer underline"
+        className="text-black cursor-pointer underline text-sm sm:text-base"
         onClick={() => setModalOpen(true)}
         title="View account info"
       >
         {user.email}
       </span>
       {user.role === "admin" && (
-        <Button asChild>
+        <Button asChild size="sm" className="w-full sm:w-auto">
           <Link to="/admin">Admin Panel</Link>
         </Button>
       )}
       <Button 
         variant="destructive"
         size="sm"
+        className="w-full sm:w-auto"
         onClick={logout}
       >
         Logout

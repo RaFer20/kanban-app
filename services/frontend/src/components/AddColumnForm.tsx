@@ -24,8 +24,8 @@ export function AddColumnForm({ boardId, onAdded, onCancel }: { boardId: number;
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <h2 className="text-xl font-bold mb-2">Create Column</h2>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full max-w-xs sm:max-w-md mx-auto p-4">
+      <h2 className="text-xl font-bold mb-2 text-center sm:text-left">Create Column</h2>
       <input
         type="text"
         placeholder="Column name"
@@ -35,17 +35,17 @@ export function AddColumnForm({ boardId, onAdded, onCancel }: { boardId: number;
         required
         disabled={loading}
       />
-      <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row gap-2">
         <button
           type="submit"
-          className="px-4 py-2 bg-blue-600 text-white rounded transition hover:bg-blue-700 hover:scale-105"
+          className="px-4 py-2 bg-blue-600 text-white rounded w-full sm:w-auto transition hover:bg-blue-700 hover:scale-105"
           disabled={loading}
         >
           {loading ? "Adding..." : "Add"}
         </button>
         <button
           type="button"
-          className="px-4 py-2 transition hover:bg-gray-200 hover:scale-105"
+          className="px-4 py-2 rounded border w-full sm:w-auto transition hover:bg-gray-200 hover:scale-105"
           onClick={onCancel}
           disabled={loading}
         >

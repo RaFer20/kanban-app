@@ -84,25 +84,25 @@ export function TaskModal({
           <input
             value={title}
             onChange={e => setTitle(e.target.value)}
-            className="border rounded px-2 py-1 text-sm"
+            className="border rounded px-2 py-1 text-sm w-full"
             required
           />
           <textarea
             value={desc}
             onChange={e => setDesc(e.target.value)}
-            className="border rounded px-2 py-1 text-sm"
+            className="border rounded px-2 py-1 text-sm w-full"
             placeholder="Description"
           />
-          <div className="flex gap-2 mt-2">
+          <div className="flex flex-col sm:flex-row gap-2 mt-2">
             <button
               type="submit"
-              className="bg-blue-500 text-white px-3 py-1 rounded"
+              className="bg-blue-500 text-white px-3 py-2 rounded w-full sm:w-auto"
             >
               Save
             </button>
             <button
               type="button"
-              className="px-3 py-1"
+              className="px-3 py-2 rounded border w-full sm:w-auto"
               onClick={() => setEditing(false)}
             >
               Cancel
@@ -121,7 +121,7 @@ export function TaskModal({
               <select
                 value={assigneeId}
                 onChange={e => setAssigneeId(e.target.value)}
-                className="border rounded px-2 py-1 text-sm mb-2"
+                className="border rounded px-2 py-1 text-sm mb-2 w-full"
               >
                 <option value="">Unassigned</option>
                 {boardMembers.map(m => (
@@ -133,7 +133,7 @@ export function TaskModal({
               </select>
               <button
                 type="submit"
-                className="bg-blue-500 text-white px-3 py-1 rounded"
+                className="bg-blue-500 text-white px-3 py-2 rounded w-full sm:w-auto"
               >
                 Save Assignment
               </button>
@@ -147,15 +147,15 @@ export function TaskModal({
             </div>
           )}
           <div className="text-xs text-gray-400 mb-2">Role: {userRole}</div>
-          <div className="flex gap-2 mt-4">
+          <div className="flex flex-col sm:flex-row gap-2 mt-4">
             <button
-              className="bg-blue-500 text-white px-3 py-1 rounded"
+              className="bg-blue-500 text-white px-3 py-2 rounded w-full sm:w-auto"
               onClick={() => setEditing(true)}
             >
               Edit
             </button>
             <button
-              className="bg-red-500 text-white px-3 py-1 rounded"
+              className="bg-red-500 text-white px-3 py-2 rounded w-full sm:w-auto"
               onClick={handleDelete}
             >
               Delete

@@ -51,7 +51,7 @@ export function ColumnModal({
     <SimpleModal open={true} onClose={onClose} onOverlayClick={handleOverlayClick}>
       {editing ? (
         <form onSubmit={handleEdit} className="flex flex-col gap-4">
-          <h2 className="text-xl font-bold mb-2">Edit Column</h2>
+          <h2 className="text-xl md:text-2xl font-bold mb-2 md:mb-4">Edit Column</h2>
           <input
             ref={inputRef}
             value={name}
@@ -59,11 +59,11 @@ export function ColumnModal({
             className="w-full p-2 border rounded"
             required
           />
-          <div className="flex gap-2">
-            <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded w-full sm:w-auto">
               Save
             </button>
-            <button type="button" className="px-4 py-2" onClick={() => setEditing(false)}>
+            <button type="button" className="px-4 py-2 rounded border w-full sm:w-auto" onClick={() => setEditing(false)}>
               Cancel
             </button>
           </div>
@@ -71,21 +71,21 @@ export function ColumnModal({
         </form>
       ) : (
         <div>
-          <h2 className="text-xl font-bold mb-2">{column.name}</h2>
-          <div className="flex gap-2 mt-4">
+          <h2 className="text-xl md:text-2xl font-bold mb-2 md:mb-4">{column.name}</h2>
+          <div className="flex flex-col sm:flex-row gap-2 mt-4">
             <button
-              className="bg-blue-500 text-white px-4 py-2 rounded"
+              className="bg-blue-500 text-white px-4 py-2 rounded w-full sm:w-auto"
               onClick={() => setEditing(true)}
             >
               Edit
             </button>
             <button
-              className="bg-red-500 text-white px-4 py-2 rounded"
+              className="bg-red-500 text-white px-4 py-2 rounded w-full sm:w-auto"
               onClick={handleDelete}
             >
               Delete
             </button>
-            <button className="px-4 py-2" onClick={onClose}>
+            <button className="px-4 py-2 rounded border w-full sm:w-auto" onClick={onClose}>
               Close
             </button>
           </div>
