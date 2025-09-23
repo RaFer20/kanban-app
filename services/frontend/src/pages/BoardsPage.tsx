@@ -33,8 +33,23 @@ export function BoardsPage() {
       });
   }
 
-  if (loading) return <div className="p-8">Loading boards...</div>;
-  if (error) return <div className="p-8 text-red-600">{error}</div>;
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center py-12">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-500 border-solid mb-4"></div>
+      <div className="text-lg text-gray-700">Loading boards...</div>
+    </div>
+  );
+  if (error) return (
+    <div className="flex flex-col items-center justify-center py-12">
+      <div className="text-red-600 text-lg mb-2">{error}</div>
+      <button
+        className="mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        onClick={fetchBoards}
+      >
+        Retry
+      </button>
+    </div>
+  );
 
   return (
     <div className="px-4 py-6">
@@ -69,7 +84,12 @@ export function BoardsPage() {
         />
       )}
       {boards.length === 0 ? (
-        <div>No boards found.</div>
+        <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+          <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="mb-2">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2a2 2 0 012-2h2a2 2 0 012 2v2m-6 0h6m-6 0a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2m-6 0v2a2 2 0 002 2h6a2 2 0 002-2v-2" />
+          </svg>
+          <span>No boards found. Create your first board!</span>
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {boards.map(board => (

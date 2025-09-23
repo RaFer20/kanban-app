@@ -165,14 +165,17 @@ function App() {
       <BrowserRouter>
         <div className="min-h-screen">
           <header className="bg-primary text-primary-foreground shadow-sm border-b border-border">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex justify-between items-center h-16">
-                <h1 className="text-xl font-bold">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+              <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
+                <h1 className="text-3xl md:text-4xl font-bold">
                   <Link to="/" className="text-primary-foreground hover:text-primary-foreground/80">
                     Kanban Board
                   </Link>
                 </h1>
-                <AuthHeader />
+                <div className="flex flex-col md:flex-row md:items-center md:justify-end gap-2 w-full md:w-auto">
+                  <span className="text-base text-foreground">{/* username/email here, e.g. */}</span>
+                  <AuthHeader />
+                </div>
               </div>
             </div>
           </header>
