@@ -39,7 +39,7 @@ export function DraggableTask({
     <li
       ref={setNodeRef}
       style={style}
-      className="bg-white rounded shadow p-2 mb-2 transition hover:scale-105 hover:shadow-lg cursor-pointer"
+      className="bg-white rounded shadow p-2 mb-2 transition hover:scale-105 hover:shadow-lg cursor-pointer relative"
       {...attributes}
       {...listeners}
       onClick={onClick}
