@@ -39,7 +39,7 @@ export function AddTaskForm({
       <SimpleModal open={show} onClose={() => setShow(false)}>
         <form
           onSubmit={handleSubmit}
-          className="flex flex-col gap-4 w-full max-w-xs sm:max-w-md mx-auto p-4"
+          className="flex flex-col gap-4 w-full max-w-xs sm:max-w-md mx-auto p-4 shadow-lg"
         >
           <h2 className="text-xl font-bold mb-2 text-center sm:text-left">
             Create Task
@@ -49,7 +49,7 @@ export function AddTaskForm({
             placeholder="Task title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full p-2 border rounded"
+            className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-400 transition"
             required
           />
           <input
@@ -57,18 +57,18 @@ export function AddTaskForm({
             placeholder="Description (optional)"
             value={desc}
             onChange={(e) => setDesc(e.target.value)}
-            className="w-full p-2 border rounded"
+            className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-400 transition"
           />
           <div className="flex flex-col sm:flex-row gap-2">
             <button
               type="submit"
-              className="bg-blue-500 text-white px-4 py-2 rounded w-full sm:w-auto transition hover:bg-blue-600 hover:scale-105"
+              className="bg-blue-500 text-white px-4 py-2 rounded w-full sm:w-auto transition hover:bg-blue-600 hover:scale-105 active:scale-95"
             >
               Add
             </button>
             <button
               type="button"
-              className="px-4 py-2 rounded border w-full sm:w-auto transition hover:bg-gray-200 hover:scale-105"
+              className="px-4 py-2 rounded border w-full sm:w-auto transition hover:bg-gray-200 hover:scale-105 active:scale-95"
               onClick={() => setShow(false)}
             >
               Cancel

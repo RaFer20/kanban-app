@@ -110,17 +110,16 @@ export function BoardDetailPage() {
             user?.id === ownerId && (
               <>
                 <button
-                  className="bg-green-600 text-white px-4 py-2 rounded"
+                  className="bg-green-600 text-white px-4 py-2 rounded shadow transition hover:bg-green-700 hover:scale-105 active:scale-95 w-full sm:w-auto"
                   onClick={() => setShowInviteForm((v) => !v)}
                 >
                   Manage Members
                 </button>
                 <button
-                  className="bg-red-600 text-white px-4 py-2 rounded ml-2"
+                  className="bg-red-600 text-white px-4 py-2 rounded shadow transition hover:bg-red-700 hover:scale-105 active:scale-95 w-full sm:w-auto ml-0 sm:ml-2"
                   onClick={async () => {
                     if (!window.confirm("Are you sure you want to delete this board? This cannot be undone.")) return;
                     await boardApi.deleteBoard(board.id);
-                    // Redirect to boards list after deletion
                     window.location.href = "/boards";
                   }}
                 >

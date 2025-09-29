@@ -128,15 +128,25 @@ function HomePage() {
       {user ? (
         <div className="space-y-4">
           <p className="text-muted-foreground">Hello, {user.email}!</p>
-          <Button asChild>
-            <Link to="/boards">View Boards</Link>
+          <Button
+            asChild
+            className="bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-lg font-medium shadow px-6 py-3"
+          >
+            <Link to="/boards" style={{ color: "white" }}>
+              View Boards
+            </Link>
           </Button>
         </div>
       ) : (
         <div className="space-y-4">
           <p className="text-muted-foreground">Please log in to access your boards.</p>
-          <Button asChild>
-            <Link to="/login">Go to Login</Link>
+          <Button
+            asChild
+            className="bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-lg font-medium shadow px-6 py-3"
+          >
+            <Link to="/login" style={{ color: "white" }}>
+              Go to Login
+            </Link>
           </Button>
         </div>
       )}
