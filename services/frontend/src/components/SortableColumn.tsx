@@ -64,16 +64,16 @@ export function SortableColumn({
     <div
       ref={setNodeRef}
       style={style}
-      className="transition hover:scale-105 hover:shadow-lg w-full md:w-80 mb-4 md:mb-0"
+      className="transition-colors duration-200 hover:scale-105 hover:shadow-lg hover:bg-gray-50 w-full md:w-80 mb-4 md:mb-0"
     >
-      <div className="flex items-center mb-2">
+      <div className="flex items-center mb-2 group">
         <span className="font-semibold flex-1" onClick={() => onColumnClick(col)}>
           {col.name}
         </span>
         <span
           {...attributes}
           {...listeners}
-          className="cursor-grab px-2"
+          className="cursor-grab px-2 transition-transform group-hover:scale-125"
           title="Drag column"
           style={{ display: "inline-block" }}
         >
