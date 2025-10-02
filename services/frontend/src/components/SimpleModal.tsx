@@ -36,7 +36,7 @@ export function SimpleModal({
       }}
     >
       <div
-        className="bg-white rounded-lg shadow-lg p-4 sm:p-6 w-full max-w-xs sm:max-w-md relative transition-transform duration-200 scale-100 animate-fadeIn"
+        className="bg-card text-card-foreground rounded-lg shadow-lg p-4 sm:p-6 w-full max-w-xs sm:max-w-md relative"
         onClick={e => e.stopPropagation()}
       >
         <button

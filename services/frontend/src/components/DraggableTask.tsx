@@ -38,8 +38,13 @@ export function DraggableTask({
   return (
     <li
       ref={setNodeRef}
-      style={style}
-      className="bg-white rounded shadow p-2 mb-2 transition hover:scale-105 hover:shadow-lg cursor-pointer relative"
+      style={{
+        ...style,
+        background: "var(--task)",
+        color: "var(--task-foreground)",
+        border: "1px solid var(--muted, #e5e7eb)", // fallback to Tailwind gray-200
+      }}
+      className="relative rounded shadow p-2 cursor-pointer transition hover:scale-105"
       {...attributes}
       {...listeners}
       onClick={onClick}

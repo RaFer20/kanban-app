@@ -64,7 +64,7 @@ export function SortableColumn({
     <div
       ref={setNodeRef}
       style={style}
-      className="transition-colors duration-200 hover:scale-105 hover:shadow-lg hover:bg-gray-50 w-full md:w-80 mb-4 md:mb-0"
+      className="transition hover:scale-105 hover:shadow-lg w-full md:w-80 mb-4 md:mb-0 bg-card text-card-foreground rounded shadow"
     >
       <div className="flex items-center mb-2 group">
         <span className="font-semibold flex-1" onClick={() => onColumnClick(col)}>
@@ -87,29 +87,37 @@ export function SortableColumn({
         strategy={verticalListSortingStrategy}
       >
         <DroppableColumn col={col}>
-          <ul className="space-y-4 py-2 min-h-[60px] flex flex-col justify-center">
-            {tasks.length === 0 ? (
-              <DroppableGhost id={`col-${col.id}`} />
-            ) : (
-              <>
-                {tasks
-                  .sort((a, b) => a.order - b.order)
-                  .map(task => (
-                    <DraggableTask
-                      key={task.id}
-                      task={task}
-                      columnId={col.id}
-                      onClick={() => onTaskClick(task)}
-                      activeTaskId={activeTaskId}
-                      users={users}
-                      boardMembers={boardMembers}
-                    />
-                  ))}
+          <div
+            className="rounded-lg p-4 min-w-[220px]"
+            style={{ background: "var(--card)" }}
+          >
+            <ul
+              className="space-y-4 py-2 min-h-[60px] flex flex-col justify-center rounded"
+              style={{ background: "var(--column-inner)" }}
+            >
+              {tasks.length === 0 ? (
                 <DroppableGhost id={`col-${col.id}`} />
-              </>
-            )}
-          </ul>
-          <AddTaskForm columnId={col.id} onTaskAdded={onChanged} />
+              ) : (
+                <>
+                  {tasks
+                    .sort((a, b) => a.order - b.order)
+                    .map(task => (
+                      <DraggableTask
+                        key={task.id}
+                        task={task}
+                        columnId={col.id}
+                        onClick={() => onTaskClick(task)}
+                        activeTaskId={activeTaskId}
+                        users={users}
+                        boardMembers={boardMembers}
+                      />
+                    ))}
+                  <DroppableGhost id={`col-${col.id}`} />
+                </>
+              )}
+            </ul>
+            <AddTaskForm columnId={col.id} onTaskAdded={onChanged} />
+          </div>
         </DroppableColumn>
       </SortableContext>
     </div>

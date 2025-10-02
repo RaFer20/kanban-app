@@ -46,14 +46,27 @@ export function RegisterForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="bg-white p-6 sm:p-8 rounded shadow-md w-full max-w-xs sm:max-w-sm border-2 border-blue-300 mx-auto flex flex-col gap-4 transition-transform duration-200 hover:shadow-lg hover:scale-[1.01] focus-within:shadow-lg focus-within:scale-[1.01]"
+      className="
+        bg-white dark:bg-card
+        p-6 sm:p-8
+        rounded
+        shadow-md
+        w-full max-w-xs sm:max-w-sm
+        border-2 border-blue-300 dark:border-border
+        mx-auto flex flex-col gap-4
+        transition-transform duration-200
+        hover:shadow-lg hover:scale-[1.01]
+        focus-within:shadow-lg focus-within:scale-[1.01]
+      "
     >
-      <h2 className="text-2xl font-bold mb-2 sm:mb-6 text-center">Register</h2>
+      <h2 className="text-2xl font-bold mb-2 sm:mb-6 text-center text-foreground dark:text-card-foreground">
+        Register
+      </h2>
       {error && <div className="mb-2 sm:mb-4 text-red-600">{error}</div>}
       <input
         type="email"
         placeholder="Email"
-        className="input-visible-border w-full p-2 rounded shadow-md focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-blue-50 transition"
+        className="input-visible-border w-full p-2 rounded shadow-md focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-blue-50 dark:focus:bg-card transition"
         value={email}
         onChange={e => setEmail(e.target.value)}
         required
@@ -84,9 +97,12 @@ export function RegisterForm() {
         )}
         {loading ? "Registering..." : "Register"}
       </button>
-      <div className="mt-2 sm:mt-4 text-center text-sm">
+      <div className="mt-2 sm:mt-4 text-center text-sm text-muted-foreground">
         <span>Already have an account? </span>
-        <Link to="/login" className="text-blue-600 hover:underline">
+        <Link
+          to="/login"
+          className="text-blue-600 dark:text-blue-400 hover:underline"
+        >
           Login
         </Link>
       </div>

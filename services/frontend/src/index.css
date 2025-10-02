@@ -16,7 +16,7 @@
   /* Light mode variables (default) */
   --background: oklch(1 0 0);
   --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(0.98 0.005 247.858);
+  --card: oklch(0.98 0.005 247.858);         /* very light gray */
   --card-foreground: oklch(0.129 0.042 264.695);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.129 0.042 264.695);
@@ -45,41 +45,46 @@
   --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
   --sidebar-border: oklch(0.929 0.013 255.508);
   --sidebar-ring: oklch(0.704 0.04 256.788);
+  --task: oklch(0.95 0.01 247.858);          /* noticeably darker than card */
+  --task-foreground: var(--foreground);
+  --modal: #f3f4f6; /* slightly darker than white for light mode */
+  --column-inner: #e5e7eb; /* Tailwind gray-200 for light mode */
 }
 
 .dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: #ef4444; /* Tailwind's red-500 */
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.551 0.027 264.364);
+  --background: #18181b; /* Tailwind zinc-900 */
+  --foreground: #f4f4f5; /* Tailwind zinc-100 */
+  --card: #232329;                           /* dark gray */
+  --card-foreground: #f4f4f5;
+  --popover: #232329;
+  --popover-foreground: #f4f4f5;
+  --primary: #3b82f6; /* Tailwind blue-500 */
+  --primary-foreground: #f4f4f5;
+  --secondary: #27272a; /* Tailwind zinc-800 */
+  --secondary-foreground: #f4f4f5;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa; /* Tailwind zinc-400 */
+  --accent: #2563eb; /* Tailwind blue-600 */
+  --accent-foreground: #f4f4f5;
+  --destructive: #ef4444; /* Tailwind red-500 */
+  --border: #27272a;
+  --input: #232329;
+  --ring: #60a5fa;
+  --task: #18181b;                           /* even darker for tasks */
+  --task-foreground: #f4f4f5;
+  --modal: #1a1a1f; /* slightly darker than --card for dark mode */
+  --column-inner: #1b1b20; /* slightly darker than #23232b, but lighter than #18181b */
+  color-scheme: dark;
+  background-color: var(--background);
+  color: var(--foreground);
 }
+
+body.dark {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+/* You can add more dark: classes in your components as needed */
 
 * {
   border-color: oklch(var(--border));
@@ -100,9 +105,9 @@ h1 {
 
 /* Better input visibility - fallback for any input elements */
 input {
-  background-color: oklch(var(--card)) !important;
-  border: 1px solid oklch(var(--border)) !important;
-  color: oklch(var(--foreground)) !important;
+  background-color: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--foreground) !important;
 }
 
 input::placeholder {
@@ -112,7 +117,7 @@ input::placeholder {
 /* Override default button styles for better visibility */
 button {
   border-radius: 8px;
-  border: 1px solid oklch(var(--border));
+  border: 1px solid var(--border);
   font-family: inherit;
   cursor: pointer;
   transition: all 0.25s;
@@ -120,22 +125,41 @@ button {
 
 button.bg-destructive {
   background: var(--destructive) !important;
-  color: white !important;
+  color: #fff !important;
 }
 
 /* Override link styles */
 a {
   font-weight: 500;
-  color: oklch(var(--primary));
+  color: var(--primary);
   text-decoration: inherit;
 }
 
 a:hover {
-  color: oklch(var(--primary) / 0.8);
+  color: #2563eb; /* Tailwind blue-600 */
 }
 
 .input-visible-border {
   border: 1px solid #888888 !important;
+}
+
+/* Ensure all cards and modals use the correct background and text color */
+.card, .modal, .bg-card {
+  background-color: var(--card) !important;
+  color: var(--card-foreground) !important;
+}
+
+/* For shadcn/ui or Tailwind utility classes */
+.bg-card {
+  background-color: var(--card) !important;
+}
+.text-card-foreground {
+  color: var(--card-foreground) !important;
+}
+
+/* Make sure all text uses the foreground variable by default */
+body, .text-foreground {
+  color: var(--foreground) !important;
 }
 
 /* For light mode compatibility */

@@ -12,7 +12,7 @@ import { AdminUsersPage } from './pages/AdminUsersPage';
 import { AdminBoardsPage } from './pages/AdminBoardsPage'; 
 import { AdminSystemPage } from './pages/AdminSystemPage';
 import { BoardPermissionsPage } from './pages/BoardPermissionsPage';
-import { AuthHeader, CatchAllRedirect } from "./components";
+import { AuthHeader, CatchAllRedirect, ThemeToggle } from "./components";
 
 // Auth Context for managing user state
 interface User {
@@ -185,6 +185,7 @@ function App() {
                 <div className="flex flex-col md:flex-row md:items-center md:justify-end gap-2 w-full md:w-auto">
                   <span className="text-base text-foreground">{/* username/email here, e.g. */}</span>
                   <AuthHeader />
+                  <ThemeToggle />
                 </div>
               </div>
             </div>

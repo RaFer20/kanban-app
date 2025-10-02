@@ -56,13 +56,21 @@ export function BoardsPage() {
       <h1 className="text-2xl font-bold mb-6 text-center md:text-left">My Boards</h1>
       <div className="mb-4 flex flex-col sm:flex-row gap-2">
         <button
-          className={`px-4 py-2 rounded ${!viewOwned ? "bg-blue-600 text-white" : "bg-gray-200"}`}
+          className={`px-4 py-2 rounded font-semibold transition hover:scale-105 active:scale-95 hover:shadow-lg ${
+            !viewOwned
+              ? "bg-blue-600 text-white shadow border-2 border-blue-700"
+              : "bg-gray-200 text-gray-800 border border-gray-300"
+          }`}
           onClick={() => setViewOwned(false)}
         >
           All Boards
         </button>
         <button
-          className={`px-4 py-2 rounded ${viewOwned ? "bg-blue-600 text-white" : "bg-gray-200"}`}
+          className={`px-4 py-2 rounded font-semibold transition hover:scale-105 active:scale-95 hover:shadow-lg ${
+            viewOwned
+              ? "bg-blue-600 text-white shadow border-2 border-blue-700"
+              : "bg-gray-200 text-gray-800 border border-gray-300"
+          }`}
           onClick={() => setViewOwned(true)}
         >
           Owned Boards

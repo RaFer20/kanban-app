@@ -66,104 +66,95 @@ export function TaskModal({
     }
   }
 
-  // Prevent click inside modal from closing
-  function handleOverlayClick(e: React.MouseEvent<HTMLDivElement>) {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  }
-
   return (
-    <SimpleModal
-      open={true}
-      onClose={onClose}
-      onOverlayClick={handleOverlayClick}
-    >
-      {editing ? (
-        <form onSubmit={handleEdit} className="flex flex-col gap-2">
-          <input
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            className="border rounded px-2 py-1 text-sm w-full"
-            required
-          />
-          <textarea
-            value={desc}
-            onChange={e => setDesc(e.target.value)}
-            className="border rounded px-2 py-1 text-sm w-full"
-            placeholder="Description"
-          />
-          <div className="flex flex-col sm:flex-row gap-2 mt-2">
-            <button
-              type="submit"
-              className="bg-blue-500 text-white px-3 py-2 rounded w-full sm:w-auto"
-            >
-              Save
-            </button>
-            <button
-              type="button"
-              className="px-3 py-2 rounded border w-full sm:w-auto"
-              onClick={() => setEditing(false)}
-            >
-              Cancel
-            </button>
-          </div>
-          {error && <span className="text-red-600 text-xs">{error}</span>}
-        </form>
-      ) : (
-        <div>
-          <h3 className="text-lg font-bold mb-2">{task.title}</h3>
-          {task.description && <p className="mb-2">{task.description}</p>}
-          {/* Assignment Section */}
-          {(userRole === "OWNER" || userRole === "EDITOR") && (
-            <form onSubmit={handleAssign} className="mb-2">
-              <label className="block text-sm mb-1">Assign to:</label>
-              <select
-                value={assigneeId}
-                onChange={e => setAssigneeId(e.target.value)}
-                className="border rounded px-2 py-1 text-sm mb-2 w-full"
-              >
-                <option value="">Unassigned</option>
-                {boardMembers.map(m => (
-                  <option key={m.userId} value={m.userId}>
-                    {getEmail(m.userId, users, boardMembers)}
-                    {m.userId === myUserId ? " (me)" : ""}
-                  </option>
-                ))}
-              </select>
+    <SimpleModal open={true} onClose={onClose}>
+      <div className="bg-card text-card-foreground p-4 rounded">
+        {editing ? (
+          <form onSubmit={handleEdit} className="flex flex-col gap-2">
+            <input
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              className="border rounded px-2 py-1 text-sm w-full"
+              required
+            />
+            <textarea
+              value={desc}
+              onChange={e => setDesc(e.target.value)}
+              className="border rounded px-2 py-1 text-sm w-full"
+              placeholder="Description"
+            />
+            <div className="flex flex-col sm:flex-row gap-2 mt-2">
               <button
                 type="submit"
                 className="bg-blue-500 text-white px-3 py-2 rounded w-full sm:w-auto"
               >
-                Save Assignment
+                Save
               </button>
-              {assignError && <span className="text-red-600 text-xs">{assignError}</span>}
-            </form>
-          )}
-          {/* Show assigned user if available */}
-          {task.assigneeId && (
-            <div className="text-xs text-gray-500 mb-2">
-              Assigned to: {getEmail(task.assigneeId, users, boardMembers)}
+              <button
+                type="button"
+                className="px-3 py-2 rounded border w-full sm:w-auto"
+                onClick={() => setEditing(false)}
+              >
+                Cancel
+              </button>
             </div>
-          )}
-          <div className="text-xs text-gray-400 mb-2">Role: {userRole}</div>
-          <div className="flex flex-col sm:flex-row gap-2 mt-4">
-            <button
-              className="bg-blue-500 text-white px-3 py-2 rounded w-full sm:w-auto"
-              onClick={() => setEditing(true)}
-            >
-              Edit
-            </button>
-            <button
-              className="bg-red-500 text-white px-3 py-2 rounded w-full sm:w-auto"
-              onClick={handleDelete}
-            >
-              Delete
-            </button>
+            {error && <span className="text-red-600 text-xs">{error}</span>}
+          </form>
+        ) : (
+          <div>
+            <h3 className="text-lg font-bold mb-2">{task.title}</h3>
+            {task.description && <p className="mb-2">{task.description}</p>}
+            {/* Assignment Section */}
+            {(userRole === "OWNER" || userRole === "EDITOR") && (
+              <form onSubmit={handleAssign} className="mb-2">
+                <label className="block text-sm mb-1">Assign to:</label>
+                <select
+                  value={assigneeId}
+                  onChange={e => setAssigneeId(e.target.value)}
+                  className="border rounded px-2 py-1 text-sm mb-2 w-full"
+                >
+                  <option value="">Unassigned</option>
+                  {boardMembers.map(m => (
+                    <option key={m.userId} value={m.userId}>
+                      {getEmail(m.userId, users, boardMembers)}
+                      {m.userId === myUserId ? " (me)" : ""}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="submit"
+                  className="bg-blue-500 text-white px-3 py-2 rounded w-full sm:w-auto"
+                >
+                  Save Assignment
+                </button>
+                {assignError && <span className="text-red-600 text-xs">{assignError}</span>}
+              </form>
+            )}
+            {/* Show assigned user if available */}
+            {task.assigneeId && (
+              <div className="text-xs text-gray-500 mb-2">
+                Assigned to: {getEmail(task.assigneeId, users, boardMembers)}
+              </div>
+            )}
+            <div className="text-xs text-gray-400 mb-2">Role: {userRole}</div>
+            <div className="flex flex-col sm:flex-row gap-2 mt-4">
+              <button
+                className="bg-blue-500 text-white px-3 py-2 rounded w-full sm:w-auto"
+                onClick={() => setEditing(true)}
+              >
+                Edit
+              </button>
+              <button
+                className="bg-red-500 text-white px-3 py-2 rounded w-full sm:w-auto"
+                onClick={handleDelete}
+              >
+                Delete
+              </button>
+            </div>
+            {error && <span className="text-red-600 text-xs">{error}</span>}
           </div>
-          {error && <span className="text-red-600 text-xs">{error}</span>}
-        </div>
-      )}
+        )}
+      </div>
     </SimpleModal>
   );
 }

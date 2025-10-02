@@ -3,7 +3,7 @@ import type { Board } from "../types/board";
 export function BoardCard({ board, onClick }: { board: Board; onClick: () => void }) {
   return (
     <div
-      className="p-4 border rounded shadow bg-white w-full flex flex-col gap-2 hover:shadow-xl hover:scale-[1.02] active:scale-95 transition duration-200 cursor-pointer group"
+      className="p-4 border rounded shadow w-full flex flex-col gap-2 hover:shadow-xl hover:scale-[1.02] active:scale-95 transition duration-200 cursor-pointer group bg-card text-card-foreground"
       tabIndex={0}
       role="button"
       aria-label={`View board ${board.name}`}

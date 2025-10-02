@@ -17,3 +17,4 @@ export * from "./ManageMembersPanel";
 export * from "./UserInfoModal";
 export * from "./AuthHeader";
 export * from "./CatchAllRedirect";
+export * from "./ThemeToggle";
