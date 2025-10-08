@@ -33,7 +33,7 @@ export function CreateBoardForm({ onCreated, onCancel }: CreateBoardFormProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="mb-6 p-4 bg-gray-100 rounded shadow-lg w-full max-w-xs sm:max-w-md mx-auto flex flex-col gap-4 transition-shadow duration-200"
+      className="card mb-6 p-4 rounded shadow-lg w-full max-w-xs sm:max-w-md mx-auto flex flex-col gap-4 transition-shadow duration-200"
     >
       {error && <div className="text-red-600">{error}</div>}
       <input
@@ -41,7 +41,7 @@ export function CreateBoardForm({ onCreated, onCancel }: CreateBoardFormProps) {
         placeholder="Board name"
         value={name}
         onChange={e => setName(e.target.value)}
-        className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-400 transition"
+        className="w-full p-2 border-2 border-blue-400 rounded bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:border-blue-600 focus:ring-2 focus:ring-blue-400 transition"
         required
         disabled={loading}
       />
@@ -55,7 +55,7 @@ export function CreateBoardForm({ onCreated, onCancel }: CreateBoardFormProps) {
         </button>
         <button
           type="button"
-          className="px-4 py-2 rounded border w-full sm:w-auto transition hover:bg-gray-200 hover:scale-105 active:scale-95"
+          className="px-4 py-2 rounded border w-full sm:w-auto transition hover:bg-gray-100 dark:hover:bg-zinc-700 hover:scale-105 active:scale-95"
           onClick={onCancel}
           disabled={loading}
         >

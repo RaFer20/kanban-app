@@ -209,3 +209,15 @@ body, .text-foreground {
 .animate-fadeIn {
   animation: fadeIn 0.18s cubic-bezier(0.4,0,0.2,1);
 }
+
+.dark input {
+  border: 1.5px solid #3b3b44 !important;
+  background-color: var(--input, #232329) !important;
+}
+
+.email-link {
+  color: #000 !important;
+}
+.dark .email-link {
+  color: #60a5fa !important; /* Tailwind blue-400 */
+}

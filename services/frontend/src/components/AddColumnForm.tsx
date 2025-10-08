@@ -45,7 +45,7 @@ export function AddColumnForm({ boardId, onAdded, onCancel }: { boardId: number;
         </button>
         <button
           type="button"
-          className="px-4 py-2 rounded border w-full sm:w-auto transition hover:bg-gray-200 hover:scale-105"
+          className="px-4 py-2 rounded border w-full sm:w-auto transition hover:bg-gray-100 dark:hover:bg-zinc-700 hover:scale-105"
           onClick={onCancel}
           disabled={loading}
         >

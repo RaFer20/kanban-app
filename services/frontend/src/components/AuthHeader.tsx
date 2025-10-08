@@ -26,7 +26,7 @@ export function AuthHeader() {
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:space-x-4 w-full">
       <span
-        className="text-black cursor-pointer underline text-sm sm:text-base"
+        className="email-link cursor-pointer underline text-sm sm:text-base"
         onClick={() => setModalOpen(true)}
         title="View account info"
       >
