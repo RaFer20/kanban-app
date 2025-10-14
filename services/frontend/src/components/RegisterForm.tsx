@@ -47,7 +47,6 @@ export function RegisterForm() {
     <form
       onSubmit={handleSubmit}
       className="
-        bg-white dark:bg-card
         p-6 sm:p-8
         rounded
         shadow-md

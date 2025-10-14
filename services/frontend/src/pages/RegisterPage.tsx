@@ -24,7 +24,7 @@ export function RegisterPage() {
 
   return (
     <div className="flex flex-col items-center min-h-screen px-4 py-8">
-      <div className="w-full max-w-md bg-white rounded shadow p-6">
+      <div className="w-full max-w-md bg-card rounded shadow p-6">
         <RegisterForm />
       </div>
     </div>
